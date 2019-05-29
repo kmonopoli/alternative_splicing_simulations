@@ -2,6 +2,9 @@
 import random
 import numpy as np
 import pandas
+import os
+import subprocess
+from subprocess import Popen, PIPE
 
 ## attributes TODO: make so read from command line
 d_dists = [3] # d distances?
@@ -14,7 +17,7 @@ u_dist = 0.5
 n_millions = 100 # total number of millions of transcripts to consider
 transc_rate = 1.5 # rate of transcription
 # variables (to simulate over)
-labelings = [5,10,20,60]
+labelings = [5]#[5,10,20,60]
 #h_s = list(np.arange(0.2,0.9,0.1))+list(np.arange(1,10,0.75))+list(np.arange(11,100,2))
 h_s = [0.2]
 introns =[40.0] #NOTE: need to make larger because alt spliced introns are larger (look up)
@@ -74,9 +77,9 @@ def simulate(intron, exon, u_dist, d_dist, labeling, h, expr_lvl, n_millions, tr
     # And determine resulting lengths of transcripts that were spliced
     spliced = [splice(x, intron, intron_1, exon_se, u_dist, h, h_alt_e, transc_rate, psi_se) for x in end_sites]
 
-     #TODO: Get the reads from the transcripts and map them to the gene
-
-
+    #TODO: Get the reads from the transcripts and map them to the gene
+    print spliced[0][0]
+    get_reads(spliced[0][0])
     return spliced
 
 # Determine if (and how) a given transcript is spliced and their resulting lengths (possibly make a separate function)
@@ -150,23 +153,31 @@ def get_reads(length):
 
     # sample lengths from a weibull distribution for the transcript and transform them to the length
     # of the transcript
-    #
-    # NOTE: may need to call subprocess to do weibull stats
+    # call a subprocess and get results (which were printed to the output of the R script)
     cwd = os.getcwd()
-    subprocess.call([cwd+"/weibull_dist_calc.R",eta_val, length ])
+    process = Popen([cwd+"/weibull_dist_calc.R",str(eta_val),str(length)], stdout=PIPE, stderr=PIPE)
+    stdout, stderr = process.communicate()
+    delta_is =  [int(x) for x in stdout.replace('[1] "c(','').replace(')"','').replace("\n","").replace("\\n","").split(", ")]
+    print delta_is
 
-  deltas = log10(lengths)
-  ns_minus_1 = pmax(round(lengths/eta_val/gamma(1/deltas + 1)) - 1, 0)
-  xis = lapply(ns_minus_1, function(n) {diff(sort(c(runif(n), 0, 1)))})
-  xis_transformed = mapply(function(x, d) {x^(1/d)}, xis, deltas, SIMPLIFY = F)
-  delta_is = mapply(function(len, x_t) {round(len*x_t/sum(x_t))}, lengths, xis_transformed, SIMPLIFY = F)
-
+    ## TODO: FINISH 
 
 
-
-
-
-
+  # get all the start and end points of the fragments 
+  starts = lapply(delta_is, function(d) {
+    if (length(d) > 1) {
+      c(sample(min(insertsize[1], d[1]), 1), cumsum(d[1:(length(d)-1)]))
+    } else{
+      sample(min(insertsize[1], d), 1)
+    }
+  })
+  ends = lapply(delta_is, function(d) {
+    if (length(d) > 1) {
+      c(cumsum(d[1:(length(d)-1)]), sum(d)-sample(min(insertsize[1], sum(d) - d[length(d)]), 1))
+    } else{
+      d
+    }
+  })
 
 
 
@@ -205,7 +216,6 @@ for labeling in labelings:
                             
                             ls.append(e)
 
-print e
 df = pandas.DataFrame(ls,index = None, columns = None)
 df = df.transpose()
 df.to_csv("output.csv", sep=',')
