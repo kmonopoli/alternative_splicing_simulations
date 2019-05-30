@@ -78,9 +78,8 @@ def simulate(intron, exon, u_dist, d_dist, labeling, h, expr_lvl, n_millions, tr
     spliced = [splice(x, intron, intron_1, exon_se, u_dist, h, h_alt_e, transc_rate, psi_se) for x in end_sites]
 
     #TODO: Get the reads from the transcripts and map them to the gene
-    print spliced[0][0]
-    get_reads(spliced[0][0])
-    return spliced
+    reads = [get_reads(x[0]) for x in spliced[0:10]] ## TODO: TESTING remove [0:10] later
+    return reads
 
 # Determine if (and how) a given transcript is spliced and their resulting lengths (possibly make a separate function)
 #  ## TODO: update so uses exponential function (see slides from ap)
@@ -160,25 +159,12 @@ def get_reads(length):
     delta_is =  [int(x) for x in stdout.replace('[1] "c(','').replace(')"','').replace("\n","").replace("\\n","").split(", ")]
     starts = get_reads_helper_start(delta_is, insertsize)
     ends = get_reads_helper_end(delta_is, insertsize)
-
-    
-    
-    ## TODO: FINISH 
-
-  # convert to a data frame of fragments and associated transcritp index
-  fragments = data.frame(transcript = rep(1:length(deltas), unlist(lapply(delta_is, length))),start = unlist(starts),end = unlist(ends))
-  fragments$length = fragments$end - fragments$start
-
-  # Filter fragments by length and return
-  fragments = fragments[fragments$length >= insertsize[1] & fragments$length <= insertsize[2],]
-  return(fragments[c('transcript', 'start')])
-
-
-
-
-
-
-
+    lengths = [y-x for x, y in zip(starts, ends)]
+    # Filter fragments by length and return
+    starts = [starts[i] for i,v in enumerate(starts) if ((lengths[i] >=insertsize[0]) and (lengths[i]<=insertsize[1]))]
+    #ends = [ends[i] for i,v in enumerate(ends) if ((lengths[i] >=insertsize[0]) and (lengths[i]<=insertsize[1]))]
+    lengths = [x for x in lengths if ((x >=insertsize[0]) and (x<=insertsize[1]))]
+    return [starts,lengths]
 
     
 # get the start points of the fragments 
@@ -230,7 +216,7 @@ for labeling in labelings:
                     for intron in introns:
                         for psi in psi_se: # NOTE: should I iterate through these or just calculate?
                             e = simulate(intron, exon, u_dist, d_dist, labeling, h, expr_lvl, n_millions, transc_rate, intron_1, intron_2, exon_se, h_alt_e, psi)
-                            
+                            print e 
                             ls.append(e)
 
 df = pandas.DataFrame(ls,index = None, columns = None)
