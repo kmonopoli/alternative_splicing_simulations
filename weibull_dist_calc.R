@@ -55,6 +55,3 @@ print(as.character(delta_is))
 
 
 
-
-
-

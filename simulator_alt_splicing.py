@@ -158,26 +158,43 @@ def get_reads(length):
     process = Popen([cwd+"/weibull_dist_calc.R",str(eta_val),str(length)], stdout=PIPE, stderr=PIPE)
     stdout, stderr = process.communicate()
     delta_is =  [int(x) for x in stdout.replace('[1] "c(','').replace(')"','').replace("\n","").replace("\\n","").split(", ")]
-    print delta_is
+    starts = get_reads_helper_start(delta_is, insertsize)
+    ends = get_reads_helper_end(delta_is, insertsize)
 
+    
+    
     ## TODO: FINISH 
 
+  # convert to a data frame of fragments and associated transcritp index
+  fragments = data.frame(transcript = rep(1:length(deltas), unlist(lapply(delta_is, length))),start = unlist(starts),end = unlist(ends))
+  fragments$length = fragments$end - fragments$start
 
-  # get all the start and end points of the fragments 
-  starts = lapply(delta_is, function(d) {
-    if (length(d) > 1) {
-      c(sample(min(insertsize[1], d[1]), 1), cumsum(d[1:(length(d)-1)]))
-    } else{
-      sample(min(insertsize[1], d), 1)
-    }
-  })
-  ends = lapply(delta_is, function(d) {
-    if (length(d) > 1) {
-      c(cumsum(d[1:(length(d)-1)]), sum(d)-sample(min(insertsize[1], sum(d) - d[length(d)]), 1))
-    } else{
-      d
-    }
-  })
+  # Filter fragments by length and return
+  fragments = fragments[fragments$length >= insertsize[1] & fragments$length <= insertsize[2],]
+  return(fragments[c('transcript', 'start')])
+
+
+
+
+
+
+
+
+    
+# get the start points of the fragments 
+def get_reads_helper_start(delta_is, insertsize):
+    if len(delta_is) > 1:
+        d = range(min(insertsize[0], delta_is)+1)[1:]
+        return random.sample(d,1)+ pandas.Series(delta_is[0:len(delta_is)-1]).cumsum().values.tolist()
+    else:
+        return [random.sample(min(insertsize[0], delta_is),1)]
+    
+# get the end points of the fragments 
+def get_reads_helper_end(delta_is, insertsize):
+    if len(delta_is)>1:
+        return pandas.Series(delta_is[0:len(delta_is)-1]).cumsum().values.tolist() + [sum(delta_is) - random.sample(range(min(insertsize[0], (sum(delta_is)-delta_is[-1]))+1)[1:],1)[0]]
+    else:
+        return delta_is
 
 
 
