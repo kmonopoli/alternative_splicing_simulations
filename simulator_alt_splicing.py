@@ -23,7 +23,7 @@ transc_rate = 1.5 # rate of transcription
 labelings = [5]#[5,10,20,60]
 #h_s = list(np.arange(0.2,0.9,0.1))+list(np.arange(1,10,0.75))+list(np.arange(11,100,2))
 h_s = [0.2]#[100]#[0.2]
-introns =[0.04] #[5]#[0.04]#[40.0] #NOTE: need to make larger because alt spliced introns are larger (look up)
+introns =[5] #[5]#[0.04]#[40.0] #NOTE: need to make larger because alt spliced introns are larger (look up)
 #introns =list(np.arange(0.04,0.09,0.02)+list(np.arange(0.1,1,0.1))+list(np.arange(1,50,2))
 
 #d_dists = list(np.arange(0.5, 5, 0.5))
@@ -34,20 +34,15 @@ introns =[0.04] #[5]#[0.04]#[40.0] #NOTE: need to make larger because alt splice
 #                       that isn't divisible by 4 will give a non-integral response which won't work in the simulations
 #h_s_alt_e = list(np.arange(0.2,0.9,0.1))+list(np.arange(1,10,0.75))+list(np.arange(11,100,2))
 h_s_alt_e = [0.2]
-exon_se = 0# introns[0]/4
-intron_1 = 0#(introns[0]-exon_se)/2
-intron_2 = 0#introns[0]-(exon_se+intron_1)
-psi_se=[0]#[0.5]#list(np.arange(0.0,1,0.1)) #Psi of SE (skipped exon) ## TODO: need a function that calculates this
+## TODO: need to iterate over
+exon_se = introns[0]/4
+intron_1 = (introns[0]-exon_se)/2
+intron_2 = introns[0]-(exon_se+intron_1)
+psi_se=[1]#[0.5]#list(np.arange(0.0,1,0.1)) #Psi of SE (skipped exon) ## TODO: need a function that calculates this
 
 
 
-#
-#       MODEL:
-#
-#                  ---------------------------intron---------------
-#
-#     [  u_dist   ]----intron_1----[/// exon_se ///]---intron_2----[  exon  (d_dist?)  AAAAAA]
-#
+
 
 
 ## Simulation Function
@@ -78,11 +73,11 @@ def simulate(intron, exon, u_dist, d_dist, labeling, h, expr_lvl, n_millions, tr
 
     # Determine if the transcripts are spliced or not
     # And determine resulting lengths of transcripts that were spliced
-    spliced = [splice(x, intron, intron_1, exon_se, u_dist, h, h_alt_e, transc_rate, psi_se) for x in end_sites]
-    
+    spliced = [splice(x, intron, intron_1, intron_2, exon_se, u_dist, d_dist, h, h_alt_e, transc_rate, psi_se) for x in end_sites]
     # Get the reads from the transcripts and map them to the gene
     start_reads = get_reads(spliced)
     start_pos = pandas.DataFrame({"transcript":start_reads[0],"start":start_reads[1]})
+    print start_pos
     
     # Get splice types (numeric)
     start_pos.insert(0,"splice_type",[spliced[x-1][1] for x in start_pos['transcript']])
@@ -102,7 +97,149 @@ def simulate(intron, exon, u_dist, d_dist, labeling, h, expr_lvl, n_millions, tr
     unspliced_num = sum((start_pos['splice_type']==0) & (start_pos['start'] > (intron + u_dist-rl+10)) & (start_pos['start'] <= (intron + u_dist-9)))
     intron_num = sum((start_pos['splice_type']==0) & (start_pos['start'] >=1 ) & (start_pos['start'] < 50) )
 
-    return [reads,spliced_num,unspliced_num,start_pos['splice_type']]
+    return [reads,intron_num,spliced_num,unspliced_num,start_pos['splice_type']]
+
+# Determine if (and how) a given transcript is spliced and their resulting lengths (possibly make a separate function)
+#
+# Spliced only if:
+#   1) Long enough:
+#       a) For alt:
+#           end_site > intron_1
+#       b) For constitutive:
+#           end_site > intron
+#
+#   2) Probability of splicing 
+#       Depends on:
+#           a) psi_se
+#           b) transcription_rate
+#           c) half_life (of the exon)
+#       
+#   0 --> unspliced
+#   1 --> spliced
+#   2 --> alternative spliced (retain exon_se)
+#   3 --> alternative spliced short (retain exon_se) but exon not yet transcribed #NOTE: should I include this one?
+#   4 --> unspliced (not long enough to splice)
+#    
+#    MODEL:
+#                  ---------------------------intron---------------
+#
+#     [  u_dist   ]----intron_1----[/// exon_se ///]---intron_2----[  exon  (d_dist?)  AAAAAA]
+#
+#
+#
+def splice(end_site, intron, intron_1, intron_2, exon_se, u_dist, d_dist, h, h_alt_e, transc_rate, psi_se): 
+    
+    t = None # splice type
+    final_len = 0 # length of transcript after splicing
+    
+
+    
+    # too short to splice
+    if(end_site < intron_1+u_dist):
+        
+        t = 4
+        final_len = u_dist+end_site
+
+    
+    # alternatively spliced / not spliced SHORT #NOTE: should this even be here?
+    elif((end_site >= intron_1+u_dist) and (end_site < intron+u_dist)): #TODO: need to determine >= or just >?
+        ## OLD (possibly wrong)
+        ## runs a probability based on psi_se, transcription_rate, and half_life # TODO: for now just depends on Psi
+        ## n = np.random.choice([0, 3], p=[1-psi_se,psi_se])
+        
+        # Updated
+        n = np.random.uniform(0,1,1).tolist()[0]>2**(-(end_site-intron_1)/h_alt_e/transc_rate)
+        
+        if n:
+            t = 0
+            final_len = u_dist+end_site
+        else:
+            t = 3
+            final_len = u_dist + min(end_site, intron_1+exon_se+d_dist) - intron_1 
+  
+    # alternatively spliced / constitutetively spliced # NOTE: should this also have a not spliced option?
+    elif(end_site >= intron+u_dist):
+        ## OLD (possibly wrong)
+        # n = np.random.choice([1, 2], p=[1-psi_se,psi_se])
+
+        # Updated
+        n = np.random.uniform(0,1,1).tolist()[0]>2**(-(end_site-intron)/h/transc_rate)
+        m = np.random.uniform(0,1,1).tolist()[0]>2**(-(end_site-intron)/h_alt_e/transc_rate)
+
+        if m: # alternatively spliced
+            t = 2
+            final_len = u_dist + min(end_site, exon_se+d_dist) - (intron_1+intron_2)
+        elif n: # spliced normally
+            t = 1
+            final_len = u_dist + min(end_site, intron+exon+d_dist) - intron
+        else: #unspliced
+            t = 0
+            final_len = u_dist+ end_site 
+            
+        
+
+        
+    else:
+        print "\nERROR: end_site = ",end_site," quitting..."
+        quit()
+#    print end_site, " <-- *"
+#    print "intron_1 -> ",intron_1
+#    print "exon_se -> ",exon_se
+#    print "intron_2 -> ",intron_2
+#    print "d_dist -> ",d_dist
+#    print "u_dist -> ",u_dist
+##    print "sum -> ",intron_1+exon_se+intron_2
+##    print "intron -> ",intron
+#    print "splice type --> ",t
+#    print "final length --> ", final_len
+#    print "\n"
+    return [int(final_len),t]
+
+
+
+
+
+# Fragment and Read Function
+#
+# Takes a transcript and selects a fragment from it, then performs size selection, and returns the starting position of the
+# resulting reads relative to the length of the transcript
+#
+# Inputs:
+#   data = [lengths, splice_type]
+#       lengths - the length of a transcript
+#       splice type
+#
+# Outputs:
+#   fragments - an array of arrays ith the start positions of the filtered fragments and the index
+#               of the transcript that it came from (columns: transcript, start)
+def get_reads(data):
+    lengths = [x[0] for x in data]
+    splice_type = [x[1] for x in data]
+    data = [lengths,splice_type]
+    cwd = os.getcwd()
+    process = Popen([cwd+"/weibull_dist_calc.R",str(data)], stdout=PIPE, stderr=PIPE)
+    stdout, stderr = process.communicate()
+
+    stdout = [map(int, q) for q in [x.replace(")","").replace("\n","").replace(" ","").replace('"','').split(",") for x in stdout.split("c(")][1:]]
+    return stdout
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # determines if a read is a junction read (over intron/exon boundary or exon/exon boundary)
 # Adds info to dataframe: True if junction read, False otherwise
@@ -180,111 +317,7 @@ def map_data(df, u_dist, intron, intron_1, intron_2):
 
 
 
-# Determine if (and how) a given transcript is spliced and their resulting lengths (possibly make a separate function)
-#
-# Spliced only if:
-#   1) Long enough:
-#       a) For alt:
-#           end_site > intron_1
-#       b) For constitutive:
-#           end_site > intron
-#
-#   2) Probability of splicing 
-#       Depends on:
-#           a) psi_se
-#           b) transcription_rate
-#           c) half_life (of the exon)
-#       
-#   0 --> unspliced
-#   1 --> spliced
-#   2 --> alternative spliced (retain exon_se)
-#   3 --> alternative spliced short (retain exon_se) but exon not yet transcribed #NOTE: should I include this one?
-#   4 --> unspliced (not long enough to splice)
-#
-def splice(end_site, intron, intron_1, exon_se, u_dist, h, h_alt_e, transc_rate, psi_se): 
-    t = None # splice type
-    final_len = 0 # length of transcript after splicing
-    
-    
-    # too short to splice
-    if(end_site < intron_1+u_dist):
-        #print "too short "+str(end_site)
-        t = 4
-        final_len = u_dist+end_site
-    
-    
-    # alternatively spliced / not spliced SHORT #NOTE: should this even be here?
-    elif((end_site >= intron_1+u_dist) and (end_site < intron+u_dist)): #TODO: need to determine >= or just >?
-        ## OLD (possibly wrong)
-        ## runs a probability based on psi_se, transcription_rate, and half_life # TODO: for now just depends on Psi
-        ## n = np.random.choice([0, 3], p=[1-psi_se,psi_se])
-        
-        # Updated
-        n = np.random.uniform(0,1,1).tolist()[0]>2**(-(end_site-intron_1)/h_alt_e/transc_rate)
-        
-        if n:
-            #print "Short unspliced "+str(end_site)
-            t = 0
-            final_len = u_dist+end_site
-        else:
-            #print "Short spliced "+str(end_site-intron_1)
-            t = 3
-            final_len = u_dist + min(end_site, intron_1+exon_se+d_dist) - intron_1 
 
-    # alternatively spliced / constitutetively spliced # NOTE: should this also have a not spliced option?
-    elif(end_site >= intron+u_dist):
-        ## OLD (possibly wrong)
-        # n = np.random.choice([1, 2], p=[1-psi_se,psi_se])
-
-        # Updated
-        n = np.random.uniform(0,1,1).tolist()[0]>2**(-(end_site-intron)/h/transc_rate)
-        m = np.random.uniform(0,1,1).tolist()[0]>2**(-(end_site-intron)/h_alt_e/transc_rate)
-
-
-
-        if m: # alternatively spliced
-            #print "Spliced alt "+str(end_site-(intron_1+intron_2))
-            t = 2
-            final_len = u_dist + min(end_site, intron_1+exon_se+d_dist) - (intron_1+intron_2)
-        if n: # spliced normally
-            #print "Spliced normally "+str(end_site-intron)
-            t = 1
-            final_len = u_dist + min(end_site, intron+exon+d_dist) - intron
-        else: #unspliced
-            #print "unspliced"
-            t = 0
-            final_len = u_dist+ end_site 
-
-    else:
-        print "\nERROR: end_site = ",end_site," quitting..."
-        quit()
-
-    return [int(final_len),t]
-
-# Fragment and Read Function
-#
-# Takes a transcript and selects a fragment from it, then performs size selection, and returns the starting position of the
-# resulting reads relative to the length of the transcript
-#
-# Inputs:
-#   data = [lengths, splice_type]
-#       lengths - the length of a transcript
-#       splice type
-#
-# Outputs:
-#   fragments - an array of arrays ith the start positions of the filtered fragments and the index
-#               of the transcript that it came from (columns: transcript, start)
-def get_reads(data):
-   
-
-    lengths = [x[0] for x in data]
-    splice_type = [x[1] for x in data]
-    data = [lengths,splice_type]
-    cwd = os.getcwd()
-    process = Popen([cwd+"/weibull_dist_calc.R",str(data)], stdout=PIPE, stderr=PIPE)
-    stdout, stderr = process.communicate()
-    stdout = [map(int, q) for q in [x.replace(")","").replace("\n","").replace(" ","").replace('"','').split(",") for x in stdout.split("c(")][1:]]
-    return stdout
 
 
 
@@ -320,7 +353,7 @@ for labeling in labelings:
                     for intron in introns:
                         for psi in psi_se: # NOTE: should I iterate through these or just calculate?
                             e = simulate(intron, exon, u_dist, d_dist, labeling, h, expr_lvl, n_millions, transc_rate, intron_1, intron_2, exon_se, h_alt_e, psi)
-                            print e
+                            #print e
                             #e.to_csv (os.getcwd()+'/export_dataframe.csv', index = None, header=True, sep=',')
                             #ls.append(e)
                             
