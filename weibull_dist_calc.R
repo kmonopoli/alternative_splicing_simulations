@@ -85,55 +85,6 @@ splice_types <- splice_types[!is.na(splice_types)]
 df <- data.frame(splice_types = splice_types,lengths=lengths)
 start_pos = get_reads(df)
 
-# #################################################### 
-# ## FOR TESTING ###
-# lengths <- df[['lengths']]
-# splice_types <- df[['splice_types']]
-# print(splice_types)
-# deltas = log10(lengths)
-# ns_minus_1 = pmax(round(lengths/eta_val/gamma(1/deltas + 1)) - 1, 0)
-# xis = lapply(ns_minus_1, function(n) {diff(sort(c(runif(n), 0, 1)))})
-# xis_transformed = mapply(function(x, d) {x^(1/d)}, xis, deltas, SIMPLIFY = F)
-# delta_is = mapply(function(len, x_t) {round(len*x_t/sum(x_t))}, lengths, xis_transformed, SIMPLIFY = F)
-# 
-# # get all the start and end points of the fragments
-# starts = lapply(delta_is, function(d) {
-#   if (length(d) > 1) {
-#     c(sample(min(insertsize[1], d[1]), 1), cumsum(d[1:(length(d)-1)]))
-#   } else{
-#     sample(min(insertsize[1], d), 1)
-#   }
-# })
-# ends = lapply(delta_is, function(d) {
-#   if (length(d) > 1) {
-#     c(cumsum(d[1:(length(d)-1)]), sum(d)-sample(min(insertsize[1], sum(d) - d[length(d)]), 1))
-#   } else{
-#     d
-#   }
-# })
-# 
-# # convert to a data frame of fragments and associated transcritp index
-# #fragments = data.frame(transcript = rep(1:length(deltas), lengths(delta_is)),
-# # TODO: incorporate splice type here
-# fragments = data.frame(transcript = rep(1:length(deltas), unlist(lapply(delta_is, length))),
-#                        start = unlist(starts),
-#                        end = unlist(ends))
-#                       # splice_type = rep(1:length(deltas), unlist(lapply(splice_types, length))) )
-# fragments$length = fragments$end - fragments$start
-# 
-# # Filter fragments by length and return
-# fragments = fragments[fragments$length >= insertsize[1] & fragments$length <= insertsize[2],]
-# 
-# ####################################### 
-
-
-
-
-
-
-
-
-
 print(paste(gsub("\n","",as.character(start_pos[1]))," ",gsub("\n","",as.character(start_pos[2]))))
 
 

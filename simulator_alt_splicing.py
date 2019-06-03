@@ -52,17 +52,13 @@ psi_se=[0]#[0.5]#list(np.arange(0.0,1,0.1)) #Psi of SE (skipped exon) ## TODO: n
 
 ## Simulation Function
 ## need to loop through some variables/params to run this
+#
+# Outputs: (in list form)
+#   [[1]] TODO: data frame of all reads with the start position, the matching pattern, and a string with all the associated parameters (columns: start, match, name)
+#   [[2]] the number of spliced junction reads
+#   [[3]] the number of unspliced junction reads
+#   [[4]] whether or not each read comes from a spliced or unspliced transcript
 def simulate(intron, exon, u_dist, d_dist, labeling, h, expr_lvl, n_millions, transc_rate, intron_1, intron_2, exon_se, h_alt_e, psi_se):
-    # simulate transcription of region - generate a list of end sites for a transcript that are distributed 
-    # depending on where simulated transcription started
-    #
-    # Outputs: (in list form)
-    #   [[1]] data frame of all reads with the start position, the matching pattern, and a 
-    #         string with all the associated parameters (columns: start, match, name)
-    #   [[2]] the number of spliced junction reads
-    #   [[3]] the number of unspliced junction reads
-    #   [[4]] whether or not each read comes from a spliced or unspliced transcript
-    #
     intron = 1000*intron
     exon   = 1000*exon
     u_dist = 1000*u_dist
@@ -71,49 +67,42 @@ def simulate(intron, exon, u_dist, d_dist, labeling, h, expr_lvl, n_millions, tr
     intron_1 = 1000*intron_1
     intron_2 = 1000*intron_2
     exon_se = 1000*exon_se
-
+    rl = 50
     # Generate expression_level*n_millions transcripts uniformly from the labeled region 
     # end_sites = round(seq(from = 1, to = intron + exon + D_dist + labeling*transcription_rate,
     #                     length.out = expression_level*n_millions))
     end_sites =  random.sample(range(1,int(intron + exon + d_dist + labeling*transc_rate)), expr_lvl*n_millions)
     end_sites =[u_dist+x for x in end_sites]
-    df = pandas.DataFrame({'end_sites':end_sites})
 
    
 
     # Determine if the transcripts are spliced or not
     # And determine resulting lengths of transcripts that were spliced
     spliced = [splice(x, intron, intron_1, exon_se, u_dist, h, h_alt_e, transc_rate, psi_se) for x in end_sites]
-    #spliced = spliced[0:10] ## TODO: TESTING remove [0:10] later
-    df.insert(0, "spliced",spliced, True)
-
+    
+    # Get the reads from the transcripts and map them to the gene
+    start_reads = get_reads(spliced)
+    start_pos = pandas.DataFrame({"transcript":start_reads[0],"start":start_reads[1]})
+    
+    # Get splice types (numeric)
+    start_pos.insert(0,"splice_type",[spliced[x-1][1] for x in start_pos['transcript']])
     
     
-    # Get the reads from the transcripts 
-    reads = [get_reads(x[0]) for x in spliced] 
-    df.insert(0, "reads",reads, True)
-    return df
-'''
-    ## add splice type to all elements with same splice type
-    splice_types =[ x[1] for x in spliced]
-    splice_counts =  [len(x[0]) for x in reads]
-    sp = []
-    for x, y in zip(splice_types, splice_counts):
-        sp.append([x]*y)
-    sp = [item for sublist in [x for x in sp] for item in sublist]
-    starts = [item for sublist in [x[0] for x in reads] for item in sublist]
-    lengths = [item for sublist in [x[1] for x in reads] for item in sublist]
+    # Get read start positions
+    ## TODO: need to update to allow for alt splicing
+    reads = pandas.DataFrame({"start":start_pos['start'] - u_dist + intron *(start_pos['splice_type']==1)*(start_pos['start'] > u_dist)})
+    
+    # Determine if read is junction read
+    ## TODO: need to update for alt splicing
+    reads.insert(1, "junction", ((reads['start'] > (-1*rl +10)) * (reads['start'] <= -9) * (start_pos['splice_type'] == 1)), True) 
 
-    # create dataframe with all of the data
-    df = pandas.DataFrame({'start_pos':starts,'length':lengths,'splice_type':sp})
-    # Map reads to the gene
-    map_data(df, u_dist, intron, intron_1, intron_2)
 
-    # Identify junction reads
-    rl = 50
-    get_junction_reads(df,rl)
-    return df
-'''
+    # Data to return
+    spliced_num = sum(reads['junction'])
+    unspliced_num = sum((start_pos['splice_type']==0) & (start_pos['start'] > (intron + u_dist-rl+10)) & (start_pos['start'] <= (intron + u_dist-9)))
+    intron_num = sum((start_pos['splice_type']==0) & (start_pos['start'] >=1 ) & (start_pos['start'] < 50) )
+
+    return [reads,spliced_num,unspliced_num,start_pos['splice_type']]
 
 # determines if a read is a junction read (over intron/exon boundary or exon/exon boundary)
 # Adds info to dataframe: True if junction read, False otherwise
@@ -330,68 +319,11 @@ for labeling in labelings:
                 for h_alt_e in h_s_alt_e:
                     for intron in introns:
                         for psi in psi_se: # NOTE: should I iterate through these or just calculate?
-                            # = simulate(intron, exon, u_dist, d_dist, labeling, h, expr_lvl, n_millions, transc_rate, intron_1, intron_2, exon_se, h_alt_e, psi)
+                            e = simulate(intron, exon, u_dist, d_dist, labeling, h, expr_lvl, n_millions, transc_rate, intron_1, intron_2, exon_se, h_alt_e, psi)
+                            print e
                             #e.to_csv (os.getcwd()+'/export_dataframe.csv', index = None, header=True, sep=',')
                             #ls.append(e)
-                            intron = 1000*intron
-                            exon   = 1000*exon
-                            u_dist = 1000*u_dist
-                            d_dist = 1000*d_dist
-                            transc_rate = 1000*transc_rate
-                            intron_1 = 1000*intron_1
-                            intron_2 = 1000*intron_2
-                            exon_se = 1000*exon_se
-                        
-                            # Generate expression_level*n_millions transcripts uniformly from the labeled region 
-                            # end_sites = round(seq(from = 1, to = intron + exon + D_dist + labeling*transcription_rate,
-                            #                     length.out = expression_level*n_millions))
-                            end_sites =  random.sample(range(1,int(intron + exon + d_dist + labeling*transc_rate)), expr_lvl*n_millions)
-                            end_sites =[u_dist+x for x in end_sites]
-                        
-                           
-                        
-                            # Determine if the transcripts are spliced or not
-                            # And determine resulting lengths of transcripts that were spliced
-                            spliced = [splice(x, intron, intron_1, exon_se, u_dist, h, h_alt_e, transc_rate, psi_se) for x in end_sites]
                             
-                            # Get the reads from the transcripts 
-                            reads = get_reads(spliced)
-                            start_pos = pandas.DataFrame({"transcript":reads[0],"reads":reads[1]})
-                            
-                            # Get splice types (numeric)
-                            start_pos.insert(0,"splice_type",[spliced[x-1][1] for x in start_pos['transcript']])
-                            
-                            
-                            
-                            '''        
-  reads = data.frame(start = start_pos$start - U_dist +
-     intron*start_pos$spliced*(start_pos$start > U_dist))
-  reads$name = paste('i', as.character(intron), 'e', as.character(exon),
-                     'u', as.character(U_dist), 'd', as.character(D_dist),
-                     'L', as.character(labeling), 'hl', as.character(half_life),
-                     'X', as.character(expression_level),
-                     'M', as.character(n_millions), sep=':')
-  reads_formatted = formatreads(reads, intron, start_pos, U_dist, rl)
-  # reads$match = '5M'
-  # #junction = (reads$start > -rl + 1) & (reads$start <= 0) & start_pos$spliced
-  reads$junction = (reads$start > -rl + 10) & (reads$start <= -9) & start_pos$spliced
-  # reads$match[junction] = 
-  #   paste(as.character(-reads$start[junction]), 'M', as.character(intron), 'N', 
-  #         as.character(rl+reads$start[junction]), 'M', sep = '')
-  # reads$name = paste('intron', as.character(intron), 'exon', as.character(exon), 
-  #                    'U_dist', as.character(U_dist), 'D_dist', as.character(D_dist),
-  #                    'labeling', as.character(labeling), 'half_life', as.character(half_life), 
-  #                    'expression_level', as.character(expression_level), 
-  #                    'n_millions', as.character(n_millions), sep=':')
-  spliced_num = sum(reads$junction)
-  unspliced_num = sum(!start_pos$spliced &
-                        (start_pos$start > intron + U_dist-rl+10) &
-                        (start_pos$start <= intron + U_dist-9))
-  intron_num = sum(!start_pos$spliced &
-                     (start_pos$start >= 1) & (start_pos$start < 50))
-                              '''
-
-
                             
                          
 df = pandas.DataFrame(ls,index = None, columns = None)
