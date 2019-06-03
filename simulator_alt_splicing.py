@@ -6,21 +6,24 @@ import os
 import subprocess
 from subprocess import Popen, PIPE
 
+
+
+
 ## attributes TODO: make so read from command line
 d_dists = [3] # d distances?
 expr_lvls = [4]
 
 ## parameters
 # constants
-exon = 0.2
+exon = 0.3
 u_dist = 0.5
 n_millions = 100 # total number of millions of transcripts to consider
 transc_rate = 1.5 # rate of transcription
 # variables (to simulate over)
 labelings = [5]#[5,10,20,60]
 #h_s = list(np.arange(0.2,0.9,0.1))+list(np.arange(1,10,0.75))+list(np.arange(11,100,2))
-h_s = [0.2]
-introns =[40.0] #NOTE: need to make larger because alt spliced introns are larger (look up)
+h_s = [0.2]#[100]#[0.2]
+introns =[0.04] #[5]#[0.04]#[40.0] #NOTE: need to make larger because alt spliced introns are larger (look up)
 #introns =list(np.arange(0.04,0.09,0.02)+list(np.arange(0.1,1,0.1))+list(np.arange(1,50,2))
 
 #d_dists = list(np.arange(0.5, 5, 0.5))
@@ -30,11 +33,13 @@ introns =[40.0] #NOTE: need to make larger because alt spliced introns are large
 #                   NOTE: also in future need to pick actual values because now these are determined by intron length and anything 
 #                       that isn't divisible by 4 will give a non-integral response which won't work in the simulations
 #h_s_alt_e = list(np.arange(0.2,0.9,0.1))+list(np.arange(1,10,0.75))+list(np.arange(11,100,2))
-h_s_alt_e = [20]
-exon_se = introns[0]/4
-intron_1 = (introns[0]-exon_se)/2
-intron_2 = introns[0]-(exon_se+intron_1)
-psi_se=[0.5]#list(np.arange(0.0,1,0.1)) #Psi of SE (skipped exon) ## TODO: need a function that calculates this
+h_s_alt_e = [0.2]
+exon_se = 0# introns[0]/4
+intron_1 = 0#(introns[0]-exon_se)/2
+intron_2 = 0#introns[0]-(exon_se+intron_1)
+psi_se=[0]#[0.5]#list(np.arange(0.0,1,0.1)) #Psi of SE (skipped exon) ## TODO: need a function that calculates this
+
+
 
 #
 #       MODEL:
@@ -72,18 +77,121 @@ def simulate(intron, exon, u_dist, d_dist, labeling, h, expr_lvl, n_millions, tr
     #                     length.out = expression_level*n_millions))
     end_sites =  random.sample(range(1,int(intron + exon + d_dist + labeling*transc_rate)), expr_lvl*n_millions)
     end_sites =[u_dist+x for x in end_sites]
+    df = pandas.DataFrame({'end_sites':end_sites})
 
+   
 
     # Determine if the transcripts are spliced or not
     # And determine resulting lengths of transcripts that were spliced
     spliced = [splice(x, intron, intron_1, exon_se, u_dist, h, h_alt_e, transc_rate, psi_se) for x in end_sites]
-    print spliced
-    #TODO: Get the reads from the transcripts and map them to the gene
-    reads = [get_reads(x[0]) for x in spliced[0:10]] ## TODO: TESTING remove [0:10] later
-    return reads
+    #spliced = spliced[0:10] ## TODO: TESTING remove [0:10] later
+    df.insert(0, "spliced",spliced, True)
+
+    
+    
+    # Get the reads from the transcripts 
+    reads = [get_reads(x[0]) for x in spliced] 
+    df.insert(0, "reads",reads, True)
+    return df
+'''
+    ## add splice type to all elements with same splice type
+    splice_types =[ x[1] for x in spliced]
+    splice_counts =  [len(x[0]) for x in reads]
+    sp = []
+    for x, y in zip(splice_types, splice_counts):
+        sp.append([x]*y)
+    sp = [item for sublist in [x for x in sp] for item in sublist]
+    starts = [item for sublist in [x[0] for x in reads] for item in sublist]
+    lengths = [item for sublist in [x[1] for x in reads] for item in sublist]
+
+    # create dataframe with all of the data
+    df = pandas.DataFrame({'start_pos':starts,'length':lengths,'splice_type':sp})
+    # Map reads to the gene
+    map_data(df, u_dist, intron, intron_1, intron_2)
+
+    # Identify junction reads
+    rl = 50
+    get_junction_reads(df,rl)
+    return df
+'''
+
+# determines if a read is a junction read (over intron/exon boundary or exon/exon boundary)
+# Adds info to dataframe: True if junction read, False otherwise
+def get_junction_reads(df,rl):
+    i = 0
+    junction_rds = []
+    while i<df.shape[0]:
+        s = df['start_site'].iloc[i]
+        spl_t = df['splice_type'].iloc[i] # splice type
+        j_read = False
+        if (spl_t == 0 or spl_t == 4): # unspliced
+            # can get 4 types of junction reads:
+            #   exon(u_dist)/intron_1
+            #   intron_1/exon_se
+            #   exon_se/intron_2
+            #   intron_2/exon
+            ## TODO: this is complicated and will depend on the length
+            j_read = False
+
+        elif(spl_t == 1): # spliced normally
+            # only can get junction read of exon(u_dist)/exon
+            j_read = (((s+rl) > 0) and ((s+rl) < rl))
+            
+
+        elif(spl_t == 2): # spliced alternatively
+            # can get 2 types of junction reads:
+            #   exon(u_dist)/exon_se 
+            #   exon_se/exon
+            j_read = False
+
+        
+        elif(spl_t == 3): # spliced alternatively but not done transcribing intron_2
+            # can get 2 types of junction reads:
+            #   exon(u_dist)/exon_se
+            #   exon_se/intron_2
+            j_read = False
+
+        else:
+            print "ERROR splice type not supported: ",spl_t
+            quit()
+        junction_rds.append(j_read)
+        i+=1
+    # add junction read info to dataframe
+    df.insert(0, "junction_read",junction_rds, True)
+    
+    
+    
+
+# maps reads to sequence, returns start_sites based on the type of splicing that occured
+def map_data(df, u_dist, intron, intron_1, intron_2):
+    start_sites = []
+    i = 0
+    while i<df.shape[0]:
+        s = (df['start_pos'].iloc[i]-int(u_dist))
+        l = int(df['start_pos'].iloc[i]>u_dist) # 0 if too short, 1 if past u_dist
+        n = 0 
+        if  (df['splice_type'].iloc[i] == 0 or df['splice_type'].iloc[i] == 4): # 0 --> unspliced | 4 --> unspliced (not long enough to splice)
+            n = 0
+        elif(df['splice_type'].iloc[i] == 1): # 1 --> spliced
+            n=-1*int(intron)
+        elif(df['splice_type'].iloc[i] == 2): # 2 --> alternative spliced (retain exon_se)
+            n=-1*(int(intron_1+intron_2))
+        elif(df['splice_type'].iloc[i] == 3): # 3 --> alternative spliced short (retain exon_se) but exon not yet transcribed #NOTE: should I include this one?
+            n=-1*(int(intron_1))
+        else:
+            print "ERROR splice type not supported: ",(df['splice_type'].iloc[i])
+            quit()
+
+        start_sites.append(s+l*n)
+        i+=1
+
+    # add reads to dataframe
+    df.insert(0, "start_site", start_sites, True)
+
+
+
 
 # Determine if (and how) a given transcript is spliced and their resulting lengths (possibly make a separate function)
-#  ## TODO: update so uses exponential function (see slides from ap)
 #
 # Spliced only if:
 #   1) Long enough:
@@ -170,46 +278,24 @@ def splice(end_site, intron, intron_1, exon_se, u_dist, h, h_alt_e, transc_rate,
 # resulting reads relative to the length of the transcript
 #
 # Inputs:
-#   lengths - the length of a transcript
+#   data = [lengths, splice_type]
+#       lengths - the length of a transcript
+#       splice type
 #
 # Outputs:
-#   fragments - a data frame with the start positions of the filtered fragments and the index
+#   fragments - an array of arrays ith the start positions of the filtered fragments and the index
 #               of the transcript that it came from (columns: transcript, start)
-def get_reads(length):
-    eta_val = 200 # the eta value input to the Weibull distribution
-    insertsize = [200, 300] # a list of length two with the lower and upper bound for fragments
+def get_reads(data):
+   
 
-    # sample lengths from a weibull distribution for the transcript and transform them to the length
-    # of the transcript
-    # call a subprocess and get results (which were printed to the output of the R script)
+    lengths = [x[0] for x in data]
+    splice_type = [x[1] for x in data]
+    data = [lengths,splice_type]
     cwd = os.getcwd()
-    process = Popen([cwd+"/weibull_dist_calc.R",str(eta_val),str(length)], stdout=PIPE, stderr=PIPE)
+    process = Popen([cwd+"/weibull_dist_calc.R",str(data)], stdout=PIPE, stderr=PIPE)
     stdout, stderr = process.communicate()
-    delta_is =  [int(x) for x in stdout.replace('[1] "c(','').replace(')"','').replace("\n","").replace("\\n","").split(", ")]
-    starts = get_reads_helper_start(delta_is, insertsize)
-    ends = get_reads_helper_end(delta_is, insertsize)
-    lengths = [y-x for x, y in zip(starts, ends)]
-    # Filter fragments by length and return
-    starts = [starts[i] for i,v in enumerate(starts) if ((lengths[i] >=insertsize[0]) and (lengths[i]<=insertsize[1]))]
-    #ends = [ends[i] for i,v in enumerate(ends) if ((lengths[i] >=insertsize[0]) and (lengths[i]<=insertsize[1]))]
-    lengths = [x for x in lengths if ((x >=insertsize[0]) and (x<=insertsize[1]))]
-    return [starts,lengths]
-
-    
-# get the start points of the fragments 
-def get_reads_helper_start(delta_is, insertsize):
-    if len(delta_is) > 1:
-        d = range(min(insertsize[0], delta_is)+1)[1:]
-        return random.sample(d,1)+ pandas.Series(delta_is[0:len(delta_is)-1]).cumsum().values.tolist()
-    else:
-        return [random.sample(min(insertsize[0], delta_is),1)]
-    
-# get the end points of the fragments 
-def get_reads_helper_end(delta_is, insertsize):
-    if len(delta_is)>1:
-        return pandas.Series(delta_is[0:len(delta_is)-1]).cumsum().values.tolist() + [sum(delta_is) - random.sample(range(min(insertsize[0], (sum(delta_is)-delta_is[-1]))+1)[1:],1)[0]]
-    else:
-        return delta_is
+    stdout = [map(int, q) for q in [x.replace(")","").replace("\n","").replace(" ","").replace('"','').split(",") for x in stdout.split("c(")][1:]]
+    return stdout
 
 
 
@@ -244,9 +330,70 @@ for labeling in labelings:
                 for h_alt_e in h_s_alt_e:
                     for intron in introns:
                         for psi in psi_se: # NOTE: should I iterate through these or just calculate?
-                            e = simulate(intron, exon, u_dist, d_dist, labeling, h, expr_lvl, n_millions, transc_rate, intron_1, intron_2, exon_se, h_alt_e, psi)
-                            ls.append(e)
+                            # = simulate(intron, exon, u_dist, d_dist, labeling, h, expr_lvl, n_millions, transc_rate, intron_1, intron_2, exon_se, h_alt_e, psi)
+                            #e.to_csv (os.getcwd()+'/export_dataframe.csv', index = None, header=True, sep=',')
+                            #ls.append(e)
+                            intron = 1000*intron
+                            exon   = 1000*exon
+                            u_dist = 1000*u_dist
+                            d_dist = 1000*d_dist
+                            transc_rate = 1000*transc_rate
+                            intron_1 = 1000*intron_1
+                            intron_2 = 1000*intron_2
+                            exon_se = 1000*exon_se
+                        
+                            # Generate expression_level*n_millions transcripts uniformly from the labeled region 
+                            # end_sites = round(seq(from = 1, to = intron + exon + D_dist + labeling*transcription_rate,
+                            #                     length.out = expression_level*n_millions))
+                            end_sites =  random.sample(range(1,int(intron + exon + d_dist + labeling*transc_rate)), expr_lvl*n_millions)
+                            end_sites =[u_dist+x for x in end_sites]
+                        
+                           
+                        
+                            # Determine if the transcripts are spliced or not
+                            # And determine resulting lengths of transcripts that were spliced
+                            spliced = [splice(x, intron, intron_1, exon_se, u_dist, h, h_alt_e, transc_rate, psi_se) for x in end_sites]
+                            
+                            # Get the reads from the transcripts 
+                            reads = get_reads(spliced)
+                            start_pos = pandas.DataFrame({"transcript":reads[0],"reads":reads[1]})
+                            
+                            # Get splice types (numeric)
+                            start_pos.insert(0,"splice_type",[spliced[x-1][1] for x in start_pos['transcript']])
+                            
+                            
+                            
+                            '''        
+  reads = data.frame(start = start_pos$start - U_dist +
+     intron*start_pos$spliced*(start_pos$start > U_dist))
+  reads$name = paste('i', as.character(intron), 'e', as.character(exon),
+                     'u', as.character(U_dist), 'd', as.character(D_dist),
+                     'L', as.character(labeling), 'hl', as.character(half_life),
+                     'X', as.character(expression_level),
+                     'M', as.character(n_millions), sep=':')
+  reads_formatted = formatreads(reads, intron, start_pos, U_dist, rl)
+  # reads$match = '5M'
+  # #junction = (reads$start > -rl + 1) & (reads$start <= 0) & start_pos$spliced
+  reads$junction = (reads$start > -rl + 10) & (reads$start <= -9) & start_pos$spliced
+  # reads$match[junction] = 
+  #   paste(as.character(-reads$start[junction]), 'M', as.character(intron), 'N', 
+  #         as.character(rl+reads$start[junction]), 'M', sep = '')
+  # reads$name = paste('intron', as.character(intron), 'exon', as.character(exon), 
+  #                    'U_dist', as.character(U_dist), 'D_dist', as.character(D_dist),
+  #                    'labeling', as.character(labeling), 'half_life', as.character(half_life), 
+  #                    'expression_level', as.character(expression_level), 
+  #                    'n_millions', as.character(n_millions), sep=':')
+  spliced_num = sum(reads$junction)
+  unspliced_num = sum(!start_pos$spliced &
+                        (start_pos$start > intron + U_dist-rl+10) &
+                        (start_pos$start <= intron + U_dist-9))
+  intron_num = sum(!start_pos$spliced &
+                     (start_pos$start >= 1) & (start_pos$start < 50))
+                              '''
 
+
+                            
+                         
 df = pandas.DataFrame(ls,index = None, columns = None)
 df = df.transpose()
 df.to_csv("output.csv", sep=',')
