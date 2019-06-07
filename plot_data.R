@@ -103,7 +103,7 @@ eend_3 = c(ft$u_dist[1]+ft$intron_1[1]+ft$exon_se[1]+ft$intron_2[1]+ft$exon[1])
 
 gx = c(e_1,i_1,e_2,i_2,e_3)
 gxend=c(eend_1,iend_1,eend_2,iend_2,eend_3)
-gy = c(500,500,500,500,500)
+gy = c(450,450,450,450,450)
 
 
 
@@ -114,16 +114,15 @@ segment_data2 = data.frame(
   yend = gy,
   splice_type = c("exon","intron","exon","intron","exon")
 )
-sz <- c(5,2,5,2,5)
+sz <- c(5,1,5,1,5)
 
 txplt2 <- ggplot(segment_data2, aes(x = gx, y = gy, xend = gxend, yend = gy))+
   geom_segment(aes(x = gx, y = gy, xend = gxend, yend = gy,size=sz))#+
 
 txplt_all <- ggplot(NULL, aes(x = x, y = y, xend = xend, yend = yend,colour=splice_type)) + 
     geom_segment(data = segment_data) +
-    geom_segment(data = segment_data2, size = sz, color = c("black","black","black","black","black"))
-
-
+    geom_segment(data = segment_data2, size = sz, color = c("black","black","black","black","black"))+
+    theme(axis.line = element_blank(),axis.ticks = element_blank(),axis.text = element_blank(),axis.title = element_blank())
 
 # Plot chart and table into one object
 lay <- rbind(c(1,1,1),
