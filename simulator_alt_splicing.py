@@ -357,6 +357,10 @@ psi_se = psi_se_s[0]
 ################################## ################################## ##################################
 e,f = simulate(intron, exon, u_dist, d_dist, labeling, h, expr_lvl, n_millions, transc_rate, intron_1, intron_2, exon_se, h_alt_e, psi_se)
 
+
+
+
+
 ## add data for test plots
 e.insert(0,"h_ae",len(e)*[h_alt_e])
 e.insert(0,"h",len(e)*[h])
@@ -376,6 +380,35 @@ e['splice_type_read'] = np.where(e['splice_type_read'] == '4', "unspliced (short
 
 
 
+mn,mx =(round(e['read_start'].min()/100,0)*100, round( e['read_start'].max()/100,0)*100+100)
+
+# e.loc[e['splice_type_read'] == 'unspliced','read_start']
+count_unsp, division = np.histogram( e.loc[e['splice_type_read'] == 'unspliced','read_start'],
+                               bins = int(mx-mn)/100,
+                               range=(mn,mx)) 
+count_sp, division_sp = np.histogram( e.loc[e['splice_type_read'] == 'spliced','read_start'],
+                               bins = int(mx-mn)/100,
+                               range=(mn,mx)) 
+count_as, division_as = np.histogram( e.loc[e['splice_type_read'] == 'alt spliced','read_start'],
+                               bins = int(mx-mn)/100,
+                               range=(mn,mx)) 
+count_as_s, division_as_s = np.histogram( e.loc[e['splice_type_read'] == 'alt spliced (short)','read_start'],
+                               bins = int(mx-mn)/100,
+                               range=(mn,mx)) 
+count_unsp_s, division_unsp_s = np.histogram( e.loc[e['splice_type_read'] == 'unspliced (short)','read_start'],
+                               bins = int(mx-mn)/100,
+                               range=(mn,mx)) 
+hist_df = pandas.DataFrame({"count_unspliced":count_unsp,
+                            "count_spliced":count_sp,
+                            "count_alt_spliced":count_as,
+#                            "count_alt_spliced_short":count_as_s,
+                            "count_unspliced_short":count_unsp_s,
+                            "bin_start":(division[:-1]),
+#                            "bin_size":[int((division[1]-division[0]))]*len(count_unsp+count_sp+count_as+count_as_s+count_unsp_s)
+                            })
+ #"count":count,
+
+
 ## For plotting splice diagram line data
 intron = 1000*intron
 exon   = 1000*exon
@@ -390,7 +423,7 @@ f.insert(0,"splice_type_read",f['splice_type'])
 f['splice_type_read'] = np.where(f['splice_type_read'] == 0, "unspliced", f['splice_type_read'])
 f['splice_type_read'] = np.where(f['splice_type_read'] == '1', "spliced", f['splice_type_read'])
 f['splice_type_read'] = np.where(f['splice_type_read'] == '2', "alt spliced", f['splice_type_read'])
-f['splice_type_read'] = np.where(f['splice_type_read'] == '3', "alt spliced (short)", f['splice_type_read'])
+#f['splice_type_read'] = np.where(f['splice_type_read'] == '3', "alt spliced (short)", f['splice_type_read'])
 f['splice_type_read'] = np.where(f['splice_type_read'] == '4', "unspliced (short)", f['splice_type_read'])
 ## get starts and ends for each
 f.insert(0,"end_3",None)
@@ -433,6 +466,7 @@ f.insert(0,"exon_se",len(f)*[exon_se])
 
 e.to_csv (os.getcwd()+'/export_dataframe.csv', index = None, header=True, sep=',')
 f.to_csv (os.getcwd()+'/export_full_transcripts.csv', index = None, header=True, sep=',')
+hist_df.to_csv (os.getcwd()+'/export_hist_starts.csv', index = None, header=True, sep=',')
 
 #ls.append(e)
 
