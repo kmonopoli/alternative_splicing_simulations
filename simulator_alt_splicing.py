@@ -24,7 +24,7 @@ transc_rate = 1.5 # rate of transcription
 # variables (to simulate over)
 labelings = [5]#[5,10,20,60]
 h_s = [0.2]#[100]#[0.2] # list(np.arange(0.2,0.9,0.1))+list(np.arange(1,10,0.75))+list(np.arange(11,100,2))
-introns =[0.4]#[40.0] #list(np.arange(0.04,0.09,0.02)+list(np.arange(0.1,1,0.1))+list(np.arange(1,50,2)) #NOTE: need to make larger because alt spliced introns are larger (look up)
+introns =[2.0]#[40.0] #list(np.arange(0.04,0.09,0.02)+list(np.arange(0.1,1,0.1))+list(np.arange(1,50,2)) #NOTE: need to make larger because alt spliced introns are larger (look up)
 
 # for alt splicing 
 #   TODO: just for testing need to change to simulate over
@@ -67,7 +67,6 @@ def simulate(intron, exon, u_dist, d_dist, labeling, h, expr_lvl, n_millions, tr
     #                     length.out = expression_level*n_millions))
     end_sites =  random.sample(range(1,int(intron + exon + d_dist + labeling*transc_rate)), expr_lvl*n_millions)
     end_sites =[u_dist+x for x in end_sites]
-    
        
     # Determine if the transcripts are spliced or not
     # And determine resulting lengths of transcripts that were spliced
@@ -165,7 +164,7 @@ def simulate(intron, exon, u_dist, d_dist, labeling, h, expr_lvl, n_millions, tr
     #return [reads,intron_num,spliced_num,unspliced_num,start_pos['splice_type']]
 
 
-    return start_pos, spliced_df
+    return start_pos , spliced_df #e,f
 
 # Determine if (and how) a given transcript is spliced and their resulting lengths 
 #
@@ -269,6 +268,8 @@ def splice(end_site, intron, intron_1, intron_2, exon_se, u_dist, d_dist, h, h_a
 #   fragments - an array of arrays ith the start positions of the filtered fragments and the index
 #               of the transcript that it came from (columns: transcript, start)
 def get_reads(data):
+    data = [[x[0] for x in data],[x[1] for x in data]]
+
     cwd = os.getcwd()
     process = Popen([cwd+"/weibull_dist_calc.R",str(data)], stdout=PIPE, stderr=PIPE)
     stdout, stderr = process.communicate()
@@ -356,7 +357,6 @@ psi_se = psi_se_s[0]
 ################################## ################################## ##################################
 e,f = simulate(intron, exon, u_dist, d_dist, labeling, h, expr_lvl, n_millions, transc_rate, intron_1, intron_2, exon_se, h_alt_e, psi_se)
 
-
 ## add data for test plots
 e.insert(0,"h_ae",len(e)*[h_alt_e])
 e.insert(0,"h",len(e)*[h])
@@ -423,7 +423,6 @@ f.loc[f['splice_type'] == 2 , 'start_3'] = u_dist+intron_1+exon_se +intron_2
 f.loc[f['splice_type'] == 2 , 'end_3'] = u_dist+intron_1+exon_se +intron_2+exon
 
 
-'''
 f.insert(0,"u_dist",len(f)*[u_dist])
 f.insert(0,"d_dist",len(f)*[d_dist])
 f.insert(0,"intron",len(f)*[intron])
@@ -431,7 +430,6 @@ f.insert(0,"exon",len(f)*[exon])
 f.insert(0,"intron_1",len(f)*[intron_1])
 f.insert(0,"intron_2",len(f)*[intron_2])
 f.insert(0,"exon_se",len(f)*[exon_se])
-'''
 
 e.to_csv (os.getcwd()+'/export_dataframe.csv', index = None, header=True, sep=',')
 f.to_csv (os.getcwd()+'/export_full_transcripts.csv', index = None, header=True, sep=',')
