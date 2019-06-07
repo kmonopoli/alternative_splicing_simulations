@@ -28,16 +28,20 @@ mytheme <- ttheme_default(base_size = 12, colhead=list(fg_params = list(parse=TR
 tbl <- tableGrob(SummaryTable, rows=NULL, theme = mytheme)
 
 
+# Counts
+ct_dat <- read.csv(file=paste0(DIR,"export_start_posns.csv"), header=TRUE, sep=",")
+Molten <- melt(ct_dat, id.vars = "index")
+hplt2 <- ggplot(Molten, aes(x = index, y = value, colour = variable))+
+      # geom_line()+
+      geom_point()+xlab("Start Position")+ylab("Count")
 
-# # OLD histogram
-# hplt<-ggplot(dat, aes(x=read_start, color=splice_type_read, fill=splice_type_read)) + 
-#   geom_histogram( position="dodge")
+#OLD histogram
+# h_dat <- read.csv(file=paste0(DIR,"export_hist_starts.csv"), header=TRUE, sep=",")
+# Molten <- melt(h_dat, id.vars = "bin_start")
+# hplt2 <- ggplot(Molten, aes(x = bin_start, y = value, colour = variable))+ 
+#       geom_line()+geom_point()+xlab("Start Position")+ylab("Frequency")
 
-# histogram
-h_dat <- read.csv(file=paste0(DIR,"export_hist_starts.csv"), header=TRUE, sep=",")
-Molten <- melt(h_dat, id.vars = "bin_start")
-hplt2 <- ggplot(Molten, aes(x = bin_start, y = value, colour = variable))+ 
-      geom_line()+geom_point()+xlab("Start Position")+ylab("Frequency")
+
 
 # Full Transcripts
 # get other dataframe output
@@ -80,7 +84,9 @@ eend_3 = c(ft$u_dist[1]+ft$intron_1[1]+ft$exon_se[1]+ft$intron_2[1]+ft$exon[1])
 
 gx = c(e_1,i_1,e_2,i_2,e_3)
 gxend=c(eend_1,iend_1,eend_2,iend_2,eend_3)
-gy = c(450,450,450,450,450)
+
+y_height = max(segment_data$y)+max(segment_data$y)/10
+gy = c(y_height,y_height,y_height,y_height,y_height)
 
 
 segment_data2 = data.frame(

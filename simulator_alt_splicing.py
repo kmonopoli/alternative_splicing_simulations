@@ -11,7 +11,7 @@ from subprocess import Popen, PIPE
 
 ## attributes TODO: make so read from command line
 d_dists = [3] # list(np.arange(0.5, 5, 0.5))
-expr_lvls = [4] #list(np.arange(1,100, 4))
+expr_lvls = [100]#[4] #list(np.arange(1,100, 4))
 
 ## parameters
 # constants
@@ -23,19 +23,21 @@ transc_rate = 1.5 # rate of transcription
 
 # variables (to simulate over)
 labelings = [5]#[5,10,20,60]
-h_s = [0.2]#[100]#[0.2] # list(np.arange(0.2,0.9,0.1))+list(np.arange(1,10,0.75))+list(np.arange(11,100,2))
-introns =[2.0]#[40.0] #list(np.arange(0.04,0.09,0.02)+list(np.arange(0.1,1,0.1))+list(np.arange(1,50,2)) #NOTE: need to make larger because alt spliced introns are larger (look up)
+hs_intron_3 = [0.2]#[100]#[0.2] # list(np.arange(0.2,0.9,0.1))+list(np.arange(1,10,0.75))+list(np.arange(11,100,2))
+introns_3 =[2.0]#[40.0] #list(np.arange(0.04,0.09,0.02)+list(np.arange(0.1,1,0.1))+list(np.arange(1,50,2)) #NOTE: need to make larger because alt spliced introns are larger (look up)
 
 # for alt splicing 
 #   TODO: just for testing need to change to simulate over
 #   NOTE: also in future need to pick actual values because now these are determined by intron length and anything 
 #   that isn't divisible by 4 will give a non-integral response which won't work in the simulations
-h_s_alt_e = [40.0]#[40.0] # list(np.arange(0.2,0.9,0.1))+list(np.arange(1,10,0.75))+list(np.arange(11,100,2))
-exon_se = introns[0]/4
-intron_1 = (introns[0]-exon_se)/2
-intron_2 = introns[0]-(exon_se+intron_1)
+hs_intron_1 = [40.0]#[40.0] # list(np.arange(0.2,0.9,0.1))+list(np.arange(1,10,0.75))+list(np.arange(11,100,2))
+hs_intron_2 = [40.0]#[40.0] # list(np.arange(0.2,0.9,0.1))+list(np.arange(1,10,0.75))+list(np.arange(11,100,2))
 
-psi_se_s=[0]#[0.5]#list(np.arange(0.0,1,0.1)) #Psi of SE (skipped exon) ## TODO: need a function that calculates this
+exon_se = introns_3[0]/4
+intron_1 = (introns_3[0]-exon_se)/2
+intron_2 = introns_3[0]-(exon_se+intron_1)
+
+psi_se_s=[0.5]#[0.5]#list(np.arange(0.0,1,0.1)) #Psi of SE (skipped exon) ## TODO: need a function that calculates this
 
 
 
@@ -50,10 +52,10 @@ psi_se_s=[0]#[0.5]#list(np.arange(0.0,1,0.1)) #Psi of SE (skipped exon) ## TODO:
 #   [[2]] the number of spliced junction reads
 #   [[3]] the number of unspliced junction reads
 #   [[4]] whether or not each read comes from a spliced or unspliced transcript
-def simulate(intron, exon, u_dist, d_dist, labeling, h, expr_lvl, n_millions, transc_rate, intron_1, intron_2, exon_se, h_alt_e, psi_se):
+def simulate(intron_3, exon, u_dist, d_dist, labeling, h_intron_3, expr_lvl, n_millions, transc_rate, intron_1, intron_2, exon_se, h_intron_1, h_intron_2, psi_se):
 
     
-    intron = 1000*intron
+    intron_3 = 1000*intron_3
     exon   = 1000*exon
     u_dist = 1000*u_dist
     d_dist = 1000*d_dist
@@ -65,17 +67,17 @@ def simulate(intron, exon, u_dist, d_dist, labeling, h, expr_lvl, n_millions, tr
     # Generate expression_level*n_millions transcripts uniformly from the labeled region 
     # end_sites = round(seq(from = 1, to = intron + exon + D_dist + labeling*transcription_rate,
     #                     length.out = expression_level*n_millions))
-    end_sites =  random.sample(range(1,int(intron + exon + d_dist + labeling*transc_rate)), expr_lvl*n_millions)
+    end_sites =  random.sample(range(1,int(intron_3 + exon + d_dist + labeling*transc_rate)), expr_lvl*n_millions)
     end_sites =[u_dist+x for x in end_sites]
-       
+#    print len(end_sites)
     # Determine if the transcripts are spliced or not
     # And determine resulting lengths of transcripts that were spliced
-    spliced = [splice(x, intron, intron_1, intron_2, exon_se, u_dist, d_dist, h, h_alt_e, transc_rate, psi_se) for x in end_sites]
+    spliced = [splice(x, intron_3, intron_1, intron_2, exon_se, u_dist, d_dist, h_intron_3, h_intron_1, h_intron_2, transc_rate, psi_se) for x in end_sites]
     # transpose data and put in dataframe
     spliced_df = pandas.DataFrame({"lengths":[x[0] for x in spliced],"splice_type":[x[1] for x in spliced]})
     
     # Get the reads from the transcripts and map them to the gene
-    start_reads = get_reads(spliced)
+    start_reads = get_reads(spliced) # TODO : this should use rl?
     
     start_pos = pandas.DataFrame({"transcript":start_reads[0],"start":start_reads[1]})
     
@@ -85,84 +87,91 @@ def simulate(intron, exon, u_dist, d_dist, labeling, h, expr_lvl, n_millions, tr
         
     
     # Get read start positions
-    # Old - does not suppport alt. splicing
-    #reads = pandas.DataFrame({"start":start_pos['start'] - u_dist + intron *(start_pos['splice_type']==1)*(start_pos['start'] > u_dist)})
-    
     start_pos["read_start"] = np.nan
-    start_pos.read_start.loc[(start_pos['splice_type'] == 0)] = (start_pos['start'] - u_dist) + intron * (start_pos['start'] > u_dist)
-    start_pos.read_start.loc[(start_pos['splice_type'] == 1)] = (start_pos['start'] - u_dist) + intron * (start_pos['start'] > u_dist)
-    start_pos.read_start.loc[(start_pos['splice_type'] == 2)] = (start_pos['start'] - u_dist) + intron_1 * (start_pos['start'] > u_dist) + intron_2 * (start_pos['start'] > u_dist+intron_1)# TODO: not sure how to do this
-    start_pos.read_start.loc[(start_pos['splice_type'] == 3)] = (start_pos['start'] - u_dist) + intron_1 * (start_pos['start'] > u_dist) # TODO: not sure how to do this
-    start_pos.read_start.loc[(start_pos['splice_type'] == 4)] = (start_pos['start'] - u_dist)
-    
-    
-    # Determine if read is exon-exon (ee) junction read (only for splice types 1,2,3)
-    #
-    # Junction_ee types:
-    #   a -> spliced normally
-    #   b -> alt. spliced, junction 1
-    #   c -> alt. spliced, junction 2
-    #   d -> short alt. spliced, junction 1
-    # Old - does not suppport alt. splicing
-    #reads.insert(1,"splice_type",start_pos['splice_type']) ## TODO: be sure the data insert lines up correctly!
-    start_pos["junction_ee"] = "no"
-    start_pos.junction_ee.loc[(start_pos['splice_type'] == 1) & 
-                           (start_pos['read_start']  > (-1*rl +10)) &
-                           (start_pos['read_start']  <= -9)] = 'a'
-    start_pos.junction_ee.loc[(start_pos['splice_type'] == 2) & 
-                           (start_pos['read_start']  > (-1*rl +10)) &
-                           (start_pos['read_start']  <= -9)] = 'b'
-    start_pos.junction_ee.loc[(start_pos['splice_type'] == 2) & 
-                           (start_pos['read_start']  > (-1*rl +10 + intron_1)) &
-                           (start_pos['read_start']  <= (-9+ intron_1))] = 'c' # TODO: not sure if correct
-    start_pos.junction_ee.loc[(start_pos['splice_type'] == 3) & 
-                           (start_pos['read_start']  > (-1*rl +10)) &
-                           (start_pos['read_start']  <= -9)] = 'd'
-                              
-    # Determine if read is intron-exon (ie) junction read (only for splice types 0,3,4)
-    #
-    # Junction_ee types:
-    #   a1 -> unspliced (0), junction 1
-    #   b1 -> unspliced (0), junction 2
-    #   c1 -> unspliced (0), junction 3
-    #   d1 -> unspliced (0), junction 4
-    #   e1 -> short alt. spliced (3), junction 1
-    #   f1 -> too short to splice (4), juction 1
-    #   g1 -> too short to splice (4), juction 2
-    #   h1 -> too short to splice (4), juction 3
-    start_pos["junction_ie"] = "no"
-    
-    start_pos.junction_ie.loc[(start_pos['splice_type'] == 0) & 
-                           (start_pos['read_start']  > (-1*rl +10)) &
-                           (start_pos['read_start']  <= -9)] = 'a1'
-    start_pos.junction_ie.loc[(start_pos['splice_type'] == 0) & 
-                           (start_pos['read_start']  > (-1*rl +10 + intron_1)) &
-                           (start_pos['read_start']  <= (-9+intron_1))] = 'b1' # TODO: not sure if correct
-    start_pos.junction_ie.loc[(start_pos['splice_type'] == 0) & 
-                           (start_pos['read_start']  > (-1*rl +10 + intron_1+exon_se)) &
-                           (start_pos['read_start']  <= (-9+intron_1+exon_se))] = 'c1' # TODO: not sure if correct
-    start_pos.junction_ie.loc[(start_pos['splice_type'] == 0) & 
-                           (start_pos['read_start']  > (-1*rl +10 + intron_1+exon_se+intron_2)) &
-                           (start_pos['read_start']  <= (-9+intron_1+exon_se+intron_2))] = 'd1' # TODO: not sure if correct                   
-                              
-    start_pos.junction_ie.loc[(start_pos['splice_type'] == 3) & 
-                           (start_pos['read_start']  > (-1*rl +10 + exon_se)) &
-                           (start_pos['read_start']  <= (-9+exon_se))] = 'e1'# TODO: not sure if correct
-    start_pos.junction_ie.loc[(start_pos['splice_type'] == 4) & 
-                           (start_pos['read_start']  > (-1*rl +10)) &
-                           (start_pos['read_start']  <= -9)] = 'f1'                       
-    start_pos.junction_ie.loc[(start_pos['splice_type'] == 4) & 
-                           (start_pos['read_start']  > (-1*rl +10 + intron_1)) &
-                           (start_pos['read_start']  <= (-9+intron_1))] = 'g1' # TODO: not sure if correct
-    start_pos.junction_ie.loc[(start_pos['splice_type'] == 4) & 
-                           (start_pos['read_start']  > (-1*rl +10 + intron_1+exon_se)) &
-                           (start_pos['read_start']  <= (-9+intron_1+exon_se))] = 'h1' # TODO: not sure if correct
-    # Data to return
-    #spliced_num = sum(start_pos['junction']!="no")
-    #unspliced_num = sum((start_pos['splice_type']==0) & (start_pos['start'] > (intron + u_dist-rl+10)) & (start_pos['start'] <= (intron + u_dist-9)))
-    #intron_num = sum((start_pos['splice_type']==0) & (start_pos['start'] >=1 ) & (start_pos['start'] < 50) )
-    #return [reads,intron_num,spliced_num,unspliced_num,start_pos['splice_type']]
+    #    1 --> intron_1 spliced out
+    start_pos.read_start.loc[(start_pos['splice_type'] == 1)] = (start_pos['start'] - u_dist) + intron_1 * (start_pos['start'] > u_dist) # TODO: not sure how to do this
+    #    2 --> intron_2 spliced out
+    start_pos.read_start.loc[(start_pos['splice_type'] == 2)] = (start_pos['start'] - u_dist) + intron_2 * (start_pos['start'] > u_dist) # TODO: not sure how to do this
+    #    3 --> intron_1 and intron_2 spliced out (exon_se included)
+    start_pos.read_start.loc[(start_pos['splice_type'] == 3)] = (start_pos['start'] - u_dist) + intron_1 * (start_pos['start'] > u_dist) + intron_2 * (start_pos['start'] > u_dist+intron_1)# TODO: not sure how to do this
+    #    4 --> intron_3 spliced out
+    start_pos.read_start.loc[(start_pos['splice_type'] == 4)] = (start_pos['start'] - u_dist) + intron_3 * (start_pos['start'] > u_dist)
+    #    5 --> unspliced
+    start_pos.read_start.loc[(start_pos['splice_type'] == 5)] = (start_pos['start'] - u_dist) + intron_3 * (start_pos['start'] > u_dist)
 
+
+
+
+# OLD:
+#    start_pos["read_start"] = np.nan
+#    start_pos.read_start.loc[(start_pos['splice_type'] == 0)] = (start_pos['start'] - u_dist) + intron_3 * (start_pos['start'] > u_dist)
+#    start_pos.read_start.loc[(start_pos['splice_type'] == 1)] = (start_pos['start'] - u_dist) + intron_3 * (start_pos['start'] > u_dist)
+#    start_pos.read_start.loc[(start_pos['splice_type'] == 2)] = (start_pos['start'] - u_dist) + intron_1 * (start_pos['start'] > u_dist) + intron_2 * (start_pos['start'] > u_dist+intron_1)# TODO: not sure how to do this
+#    start_pos.read_start.loc[(start_pos['splice_type'] == 3)] = (start_pos['start'] - u_dist) + intron_1 * (start_pos['start'] > u_dist) # TODO: not sure how to do this
+#    start_pos.read_start.loc[(start_pos['splice_type'] == 4)] = (start_pos['start'] - u_dist)
+#    
+#    # TODO:
+#    # Determine if read is exon-exon (ee) junction read (only for splice types 1,2,3)
+#    #
+#    # Junction_ee types:
+#    #   a -> spliced normally
+#    #   b -> alt. spliced, junction 1
+#    #   c -> alt. spliced, junction 2
+#    #   d -> short alt. spliced, junction 1
+#    # Old - does not suppport alt. splicing
+#    #reads.insert(1,"splice_type",start_pos['splice_type']) ## TODO: be sure the data insert lines up correctly!
+#    start_pos["junction_ee"] = "no"
+#    start_pos.junction_ee.loc[(start_pos['splice_type'] == 1) & 
+#                           (start_pos['read_start']  > (-1*rl +10)) &
+#                           (start_pos['read_start']  <= -9)] = 'a'
+#    start_pos.junction_ee.loc[(start_pos['splice_type'] == 2) & 
+#                           (start_pos['read_start']  > (-1*rl +10)) &
+#                           (start_pos['read_start']  <= -9)] = 'b'
+#    start_pos.junction_ee.loc[(start_pos['splice_type'] == 2) & 
+#                           (start_pos['read_start']  > (-1*rl +10 + intron_1)) &
+#                           (start_pos['read_start']  <= (-9+ intron_1))] = 'c' # TODO: not sure if correct
+#    start_pos.junction_ee.loc[(start_pos['splice_type'] == 3) & 
+#                           (start_pos['read_start']  > (-1*rl +10)) &
+#                           (start_pos['read_start']  <= -9)] = 'd'
+#                              
+#    # Determine if read is intron-exon (ie) junction read (only for splice types 0,3,4)
+#    #
+#    # Junction_ee types:
+#    #   a1 -> unspliced (0), junction 1
+#    #   b1 -> unspliced (0), junction 2
+#    #   c1 -> unspliced (0), junction 3
+#    #   d1 -> unspliced (0), junction 4
+#    #   e1 -> short alt. spliced (3), junction 1
+#    #   f1 -> too short to splice (4), juction 1
+#    #   g1 -> too short to splice (4), juction 2
+#    #   h1 -> too short to splice (4), juction 3
+#    start_pos["junction_ie"] = "no"
+#    
+#    start_pos.junction_ie.loc[(start_pos['splice_type'] == 0) & 
+#                           (start_pos['read_start']  > (-1*rl +10)) &
+#                           (start_pos['read_start']  <= -9)] = 'a1'
+#    start_pos.junction_ie.loc[(start_pos['splice_type'] == 0) & 
+#                           (start_pos['read_start']  > (-1*rl +10 + intron_1)) &
+#                           (start_pos['read_start']  <= (-9+intron_1))] = 'b1' # TODO: not sure if correct
+#    start_pos.junction_ie.loc[(start_pos['splice_type'] == 0) & 
+#                           (start_pos['read_start']  > (-1*rl +10 + intron_1+exon_se)) &
+#                           (start_pos['read_start']  <= (-9+intron_1+exon_se))] = 'c1' # TODO: not sure if correct
+#    start_pos.junction_ie.loc[(start_pos['splice_type'] == 0) & 
+#                           (start_pos['read_start']  > (-1*rl +10 + intron_1+exon_se+intron_2)) &
+#                           (start_pos['read_start']  <= (-9+intron_1+exon_se+intron_2))] = 'd1' # TODO: not sure if correct                   
+#                              
+#    start_pos.junction_ie.loc[(start_pos['splice_type'] == 3) & 
+#                           (start_pos['read_start']  > (-1*rl +10 + exon_se)) &
+#                           (start_pos['read_start']  <= (-9+exon_se))] = 'e1'# TODO: not sure if correct
+#    start_pos.junction_ie.loc[(start_pos['splice_type'] == 4) & 
+#                           (start_pos['read_start']  > (-1*rl +10)) &
+#                           (start_pos['read_start']  <= -9)] = 'f1'                       
+#    start_pos.junction_ie.loc[(start_pos['splice_type'] == 4) & 
+#                           (start_pos['read_start']  > (-1*rl +10 + intron_1)) &
+#                           (start_pos['read_start']  <= (-9+intron_1))] = 'g1' # TODO: not sure if correct
+#    start_pos.junction_ie.loc[(start_pos['splice_type'] == 4) & 
+#                           (start_pos['read_start']  > (-1*rl +10 + intron_1+exon_se)) &
+#                           (start_pos['read_start']  <= (-9+intron_1+exon_se))] = 'h1' # TODO: not sure if correct
 
     return start_pos , spliced_df #e,f
 
@@ -180,63 +189,100 @@ def simulate(intron, exon, u_dist, d_dist, labeling, h, expr_lvl, n_millions, tr
 #           a) psi_se
 #           b) transcription_rate
 #           c) half_life (of the exon)
-#       
+#   OLD: 
 #   0 --> unspliced
-#   1 --> spliced
-#   2 --> alternative spliced (retain exon_se)
+#   1 --> exclude intron_3
+#   2 --> exclude intron_1 and intron_2
 #   3 --> alternative spliced short (retain exon_se) but exon not yet transcribed #NOTE: should I include this one?
 #   4 --> unspliced (not long enough to splice)
-#    
+#
+#   
+#   NEW:
+#    1 --> intron_1 excluded
+#    2 --> intron_2 excluded
+#    3 --> intron_1 and intron_2 excluded (exon_se included)
+#    4 --> intron_3 excluded
+#    5 --> unspliced
+#
 #    MODEL:
-#                  ---------------------------intron---------------
+#                  ---------------------------intron_3---------------
 #
-#     [  u_dist   ]----intron_1----[/// exon_se ///]---intron_2----[  exon  (d_dist?)  AAAAAA]
+#     [  u_dist   ]----intron_1----[/// exon_se ///]---intron_2----[  exon ][ (d_dist?)  ][AAAAAA (L*r)]
 #
 #
 #
-def splice(end_site, intron, intron_1, intron_2, exon_se, u_dist, d_dist, h, h_alt_e, transc_rate, psi_se): 
-    
+def splice(end_site, intron_3, intron_1, intron_2, exon_se, u_dist, d_dist, h_intron_3, h_intron_1, h_intron_2, transc_rate, psi_se): 
+    # TODO: include psi here (see notes) ## n = np.random.choice([1, 2], p=[1-psi_se,psi_se])
     t = -1 # splice type
     final_len = 0 # length of transcript after splicing
+    spl_path = np.random.choice([0, 1], p=[1-psi_se,psi_se]) # splice path - whether it proceed down path of alt splicing (include exon_se), or normal splicing (exclude exon_se)
+    # spl_path will be 1 if alt splicing (include exon_se), 0 if normal splicing (exclude exon_se)
     
-    if(end_site < intron_1+u_dist): # too short to splice
-        
-        t = 4
-        final_len = u_dist+end_site
-    
-    # short alternatively spliced / not spliced  
-    elif((end_site >= intron_1+u_dist) and (end_site < intron+u_dist)):
-        
-        n = np.random.uniform(0,1,1).tolist()[0]>2**(-1*(end_site-intron_1)/h_alt_e/transc_rate)
-        
-        if n: # short alt. spliced
-            t = 3
-            final_len = u_dist + min(end_site, intron_1+exon_se+d_dist) - intron_1
-            
-        else: # short unspliced (but long enough to alt. splice, just did not)
-            t = 4 # TODO: make this a different class (5)?
+    # Alternative Splicing (include exon_se)
+    if(spl_path == 1): # TODO be sure 1 and 0 are not flipped for Psi 
+        if(end_site < intron_1+u_dist): # too short to splice
+            t = 5 # unspliced
             final_len = u_dist+end_site
-  
-    # alternatively spliced / constitutetively spliced / unspliced
-    elif(end_site >= intron+u_dist):
-        # n = np.random.choice([1, 2], p=[1-psi_se,psi_se])
+    
+        # short - exclude intron_1 / unspliced
+        elif((end_site >= intron_1+u_dist) and (end_site < intron_3+u_dist)):
+            n = np.random.uniform(0,1,1).tolist()[0]>2**(-1*(end_site-intron_1)/h_intron_1/transc_rate)
+            if n: # intron_1 spliced out
+                t = 1
+                #OLD:final_len = u_dist + min(end_site, intron_1+exon_se+d_dist) - intron_1
+                final_len = u_dist+(end_site-intron_1)
+            else: # unspliced
+                t = 5
+                final_len = u_dist+end_site
+        # exclude intron_1 and intron_2 / exlude intron_1 / exclude intron_2 / unspliced
+        elif(end_site >= intron_3+u_dist):
+            # intron_1
+            m = np.random.uniform(0,1,1).tolist()[0]>2**(-1*(end_site-intron_3)/h_intron_1/transc_rate)
+            # intron_2
+            n = np.random.uniform(0,1,1).tolist()[0]>2**(-1*(end_site-intron_3)/h_intron_2/transc_rate)
 
-        n = np.random.uniform(0,1,1).tolist()[0]>2**(-1*(end_site-intron)/h/transc_rate)
-        m = np.random.uniform(0,1,1).tolist()[0]>2**(-1*(end_site-intron)/h_alt_e/transc_rate)
-
-        if m: # alternatively spliced
-            t = 2
-            final_len = u_dist + min(end_site, intron_1+intron_2+exon_se+d_dist) - (intron_1+intron_2)
-        elif n: # spliced normally
-            t = 1
-            final_len = u_dist + min(end_site, intron+exon+d_dist) - intron
-        else: # unspliced
-            t = 0
-            final_len = u_dist+ end_site 
-        
-    else:
-        print "\n ERROR: end_site = ",end_site," quitting..."
-        quit()
+            if (n and m): # exclude intron_1 and intron_2
+                t = 3
+                #OLD: final_len = u_dist + min(end_site, intron_1+intron_2+exon_se+d_dist) - (intron_1+intron_2)
+                final_len = u_dist + end_site-(intron_1+intron_2)
+            elif m: # exclude intron_1 
+                t = 1
+                final_len = u_dist + end_site-(intron_1)
+            elif n: # exclude intron_2
+                t = 2
+                final_len = u_dist + end_site-(intron_1)
+            else: # unspliced
+                t = 5
+                final_len = u_dist+ end_site 
+        else:
+            print "\n ERROR: end_site = ",end_site," quitting..."
+            quit()
+            
+    # Normal Splicing (exclude exon_se)
+    else: 
+        if(end_site < intron_1+u_dist): # too short to splice
+            t = 5 # unspliced
+            final_len = u_dist+end_site
+    
+        # short - unspliced
+        elif((end_site >= intron_1+u_dist) and (end_site < intron_3+u_dist)):
+            t = 5
+            final_len = u_dist+end_site
+        # exclude intron_3 / unspliced
+        elif(end_site >= intron_3+u_dist):
+            # intron_3
+            n = np.random.uniform(0,1,1).tolist()[0]>2**(-1*(end_site-intron_3)/h_intron_3/transc_rate)
+            if n: # exclude intron_3
+                t = 4
+#                final_len = u_dist + min(end_site, intron_3+exon+d_dist) - intron_3
+                final_len = u_dist + end_site - intron_3
+            else: # unspliced
+                t = 5
+                final_len = u_dist+ end_site 
+        else:
+            print "\n ERROR: end_site = ",end_site," quitting..."
+            quit()
+            
 #    print end_site, " <-- *"
 #    print "intron_1 -> ",intron_1
 #    print "exon_se -> ",exon_se
@@ -341,9 +387,11 @@ ls = []
 d_dist = d_dists[0]
 expr_lvl = expr_lvls[0]
 labeling = labelings[0]
-h = h_s[0]
-intron = introns[0]
-h_alt_e = h_s_alt_e[0]
+h_intron_3 = hs_intron_3[0]
+intron_3 = introns_3[0]
+h_intron_1 = hs_intron_1[0]
+h_intron_2 = hs_intron_2[0]
+
 psi_se = psi_se_s[0]
 # TODO: need to run these for loops to go through all possibilities
 #for labeling in labelings:
@@ -355,62 +403,70 @@ psi_se = psi_se_s[0]
 #                        for psi in psi_se: # NOTE: should I iterate through these or just calculate?
 #                            #e = simulate(intron, exon, u_dist, d_dist, labeling, h, expr_lvl, n_millions, transc_rate, intron_1, intron_2, exon_se, h_alt_e, psi)
 ################################## ################################## ##################################
-e,f = simulate(intron, exon, u_dist, d_dist, labeling, h, expr_lvl, n_millions, transc_rate, intron_1, intron_2, exon_se, h_alt_e, psi_se)
-
+e,f = simulate(intron_3, exon, u_dist, d_dist, labeling, h_intron_3, expr_lvl, n_millions, transc_rate, intron_1, intron_2, exon_se, h_intron_1, h_intron_2, psi_se)
 
 
 
 
 ## add data for test plots
-e.insert(0,"h_ae",len(e)*[h_alt_e])
-e.insert(0,"h",len(e)*[h])
+e.insert(0,"h_intron_1",len(e)*[h_intron_1])
+e.insert(0,"h_intron_2",len(e)*[h_intron_2])
+e.insert(0,"h_intron_3",len(e)*[h_intron_3]) # normal splicing
 e.insert(0,"transc_rate",len(e)*[transc_rate])
-e.insert(0,"intron",len(e)*[intron])
+e.insert(0,"intron_3",len(e)*[intron_3])
 e.insert(0,"intron_1",len(e)*[intron_1])
 e.insert(0,"intron_2",len(e)*[intron_2])
 e.insert(0,"exon",len(e)*[exon])
 e.insert(0,"exon_se",len(e)*[exon_se])
+e.insert(0,"psi_se",len(e)*[psi_se])
 ## Relabel splice types to readable words
 e.insert(0,"splice_type_read",e['splice_type'])
-e['splice_type_read'] = np.where(e['splice_type_read'] == 0, "unspliced", e['splice_type_read'])
-e['splice_type_read'] = np.where(e['splice_type_read'] == '1', "spliced", e['splice_type_read'])
-e['splice_type_read'] = np.where(e['splice_type_read'] == '2', "alt spliced", e['splice_type_read'])
-e['splice_type_read'] = np.where(e['splice_type_read'] == '3', "alt spliced (short)", e['splice_type_read'])
-e['splice_type_read'] = np.where(e['splice_type_read'] == '4', "unspliced (short)", e['splice_type_read'])
+e['splice_type_read'] = np.where(e['splice_type_read'] == 1, "intron_1 excluded", e['splice_type_read'])
+e['splice_type_read'] = np.where(e['splice_type_read'] == '2', "intron_2 excluded", e['splice_type_read'])
+e['splice_type_read'] = np.where(e['splice_type_read'] == '3', "intron_1 & intron_2 excluded", e['splice_type_read'])
+e['splice_type_read'] = np.where(e['splice_type_read'] == '4', "intron_3 excluded", e['splice_type_read'])
+e['splice_type_read'] = np.where(e['splice_type_read'] == '5', "unspliced", e['splice_type_read'])
 
 
-
+#Counts
 mn,mx =(round(e['read_start'].min()/100,0)*100, round( e['read_start'].max()/100,0)*100+100)
 
-# e.loc[e['splice_type_read'] == 'unspliced','read_start']
-count_unsp, division = np.histogram( e.loc[e['splice_type_read'] == 'unspliced','read_start'],
-                               bins = int(mx-mn)/100,
-                               range=(mn,mx)) 
-count_sp, division_sp = np.histogram( e.loc[e['splice_type_read'] == 'spliced','read_start'],
-                               bins = int(mx-mn)/100,
-                               range=(mn,mx)) 
-count_as, division_as = np.histogram( e.loc[e['splice_type_read'] == 'alt spliced','read_start'],
-                               bins = int(mx-mn)/100,
-                               range=(mn,mx)) 
-count_as_s, division_as_s = np.histogram( e.loc[e['splice_type_read'] == 'alt spliced (short)','read_start'],
-                               bins = int(mx-mn)/100,
-                               range=(mn,mx)) 
-count_unsp_s, division_unsp_s = np.histogram( e.loc[e['splice_type_read'] == 'unspliced (short)','read_start'],
-                               bins = int(mx-mn)/100,
-                               range=(mn,mx)) 
-hist_df = pandas.DataFrame({"count_unspliced":count_unsp,
-                            "count_spliced":count_sp,
-                            "count_alt_spliced":count_as,
-#                            "count_alt_spliced_short":count_as_s,
-                            "count_unspliced_short":count_unsp_s,
-                            "bin_start":(division[:-1]),
-#                            "bin_size":[int((division[1]-division[0]))]*len(count_unsp+count_sp+count_as+count_as_s+count_unsp_s)
-                            })
- #"count":count,
+e.loc[e['splice_type_read'] == 'intron_1 excluded','read_start'].value_counts()
 
+
+ct_df = pandas.DataFrame({"ct_intron_1_excluded":e.loc[e['splice_type_read'] == 'intron_1 excluded','read_start'].value_counts(),
+                            "ct_intron_2_excluded":e.loc[e['splice_type_read'] == 'intron_2 excluded','read_start'].value_counts(),
+                            "ct_intron_1_intron_2_excluded":e.loc[e['splice_type_read'] == 'intron_1 & intron_2 excluded','read_start'].value_counts(),
+                            "ct_intron_3_excluded":e.loc[e['splice_type_read'] == 'intron_3 excluded','read_start'].value_counts(),
+                            "ct_unspliced":e.loc[e['splice_type_read'] == 'unspliced','read_start'].value_counts(),
+#                            "bin_start":(division1[:-1]),
+                            })
+ct_df.insert(0,"index",ct_df.index)
+#ct_intron_1_excluded, division1 = np.histogram( e.loc[e['splice_type_read'] == 'intron_1 excluded','read_start'],
+#                               bins = int(mx-mn),
+#                               range=(mn,mx)) 
+#ct_intron_2_excluded, division2 = np.histogram( e.loc[e['splice_type_read'] == 'intron_2 excluded','read_start'],
+##                               bins = int(mx-mn),
+#                               range=(mn,mx)) 
+#ct_intron_1_intron_2_excluded, division3 = np.histogram( e.loc[e['splice_type_read'] == 'intron_1 & intron_2 excluded','read_start'],
+##                               bins = int(mx-mn),
+#                               range=(mn,mx)) 
+#ct_intron_3_excluded, division4 = np.histogram( e.loc[e['splice_type_read'] == 'intron_3 excluded','read_start'],
+##                               bins = int(mx-mn),
+#                               range=(mn,mx)) 
+#ct_unspliced, division5 = np.histogram( e.loc[e['splice_type_read'] == 'unspliced','read_start'],
+##                               bins = int(mx-mn),
+#                               range=(mn,mx)) 
+#hist_df = pandas.DataFrame({"ct_intron_1_excluded":ct_intron_1_excluded,
+#                            "ct_intron_2_excluded":ct_intron_2_excluded,
+#                            "ct_intron_1_intron_2_excluded":ct_intron_1_intron_2_excluded,
+#                            "ct_intron_3_excluded":ct_intron_3_excluded,
+#                            "ct_unspliced":ct_unspliced,
+#                            "bin_start":(division1[:-1]),
+#                            })
 
 ## For plotting splice diagram line data
-intron = 1000*intron
+intron_3 = 1000*intron_3
 exon   = 1000*exon
 u_dist = 1000*u_dist
 d_dist = 1000*d_dist
@@ -419,12 +475,15 @@ intron_1 = 1000*intron_1
 intron_2 = 1000*intron_2
 exon_se = 1000*exon_se
 
+
+
 f.insert(0,"splice_type_read",f['splice_type'])
-f['splice_type_read'] = np.where(f['splice_type_read'] == 0, "unspliced", f['splice_type_read'])
-f['splice_type_read'] = np.where(f['splice_type_read'] == '1', "spliced", f['splice_type_read'])
-f['splice_type_read'] = np.where(f['splice_type_read'] == '2', "alt spliced", f['splice_type_read'])
-#f['splice_type_read'] = np.where(f['splice_type_read'] == '3', "alt spliced (short)", f['splice_type_read'])
-f['splice_type_read'] = np.where(f['splice_type_read'] == '4', "unspliced (short)", f['splice_type_read'])
+f['splice_type_read'] = np.where(f['splice_type_read'] ==  1, "intron_1 excluded", f['splice_type_read'])
+f['splice_type_read'] = np.where(f['splice_type_read'] == '2', "intron_2 excluded", f['splice_type_read'])
+f['splice_type_read'] = np.where(f['splice_type_read'] == '3', "intron_1 & intron_2 excluded", f['splice_type_read'])
+f['splice_type_read'] = np.where(f['splice_type_read'] == '4', "intron_3 excluded", f['splice_type_read'])
+f['splice_type_read'] = np.where(f['splice_type_read'] == '5', "unspliced", f['splice_type_read'])
+
 ## get starts and ends for each
 f.insert(0,"end_3",None)
 f.insert(0,"start_3",None)
@@ -433,32 +492,37 @@ f.insert(0,"start_2",None)
 f.insert(0,"end_1",None)
 f.insert(0,"start_1",0) # always starts at 0
 
-## TODO: need to include other splicing possibilities in thsi model
 # start_1 
 #    (will be same for all ->0 )
 # end_1
-f.loc[f['splice_type'] == 0 , 'end_1'] = u_dist+intron_1+exon_se+intron_2+exon 
-f.loc[f['splice_type'] == 1 , 'end_1'] = u_dist
-f.loc[f['splice_type'] == 2 , 'end_1'] = u_dist 
+
+f.loc[f['splice_type'] == 1 , 'end_1'] = u_dist 
+f.loc[f['splice_type'] == 2 , 'end_1'] = u_dist + intron_1 + exon_se
 f.loc[f['splice_type'] == 3 , 'end_1'] = u_dist 
-f.loc[f['splice_type'] == 4 , 'end_1'] = f['lengths'] 
+f.loc[f['splice_type'] == 4 , 'end_1'] = u_dist
+f.loc[f['splice_type'] == 5 , 'end_1'] = f['lengths'] 
+
+
 # start_2
-f.loc[f['splice_type'] == 1 , 'start_2'] = u_dist+intron_1+exon_se+intron_2
-f.loc[f['splice_type'] == 2 , 'start_2'] = u_dist+intron_1 
-f.loc[f['splice_type'] == 3 , 'start_2'] = u_dist+intron_1
+f.loc[f['splice_type'] == 1 , 'start_2'] = u_dist+intron_1
+f.loc[f['splice_type'] == 2 , 'start_2'] = u_dist+intron_3
+f.loc[f['splice_type'] == 3 , 'start_2'] = u_dist+intron_1 
+f.loc[f['splice_type'] == 4 , 'start_2'] = u_dist+intron_1+exon_se+intron_2
+
 # end_2
-f.loc[f['splice_type'] == 1 , 'end_2'] = u_dist+intron_1+exon_se+intron_2+exon
-f.loc[f['splice_type'] == 2 , 'end_2'] = u_dist+intron_1+exon_se 
-f.loc[f['splice_type'] == 3 , 'end_2'] = f['lengths'] 
+f.loc[f['splice_type'] == 1 , 'end_2'] = f['lengths']+intron_1
+f.loc[f['splice_type'] == 2 , 'end_2'] = f['lengths']+intron_2
+f.loc[f['splice_type'] == 3 , 'end_2'] = u_dist+intron_1+exon_se 
+f.loc[f['splice_type'] == 4 , 'end_2'] = f['lengths']+intron_3
 # start_3
-f.loc[f['splice_type'] == 2 , 'start_3'] = u_dist+intron_1+exon_se +intron_2
+f.loc[f['splice_type'] == 3 , 'start_3'] = u_dist+intron_1+exon_se +intron_2
 # end_3
-f.loc[f['splice_type'] == 2 , 'end_3'] = u_dist+intron_1+exon_se +intron_2+exon
+f.loc[f['splice_type'] == 3 , 'end_3'] = f['lengths']+intron_1+intron_2#u_dist+intron_1+exon_se +intron_2+exon
 
 
 f.insert(0,"u_dist",len(f)*[u_dist])
 f.insert(0,"d_dist",len(f)*[d_dist])
-f.insert(0,"intron",len(f)*[intron])
+f.insert(0,"intron_3",len(f)*[intron_3])
 f.insert(0,"exon",len(f)*[exon])
 f.insert(0,"intron_1",len(f)*[intron_1])
 f.insert(0,"intron_2",len(f)*[intron_2])
@@ -466,12 +530,12 @@ f.insert(0,"exon_se",len(f)*[exon_se])
 
 e.to_csv (os.getcwd()+'/export_dataframe.csv', index = None, header=True, sep=',')
 f.to_csv (os.getcwd()+'/export_full_transcripts.csv', index = None, header=True, sep=',')
-hist_df.to_csv (os.getcwd()+'/export_hist_starts.csv', index = None, header=True, sep=',')
+ct_df.to_csv (os.getcwd()+'/export_start_posns.csv', index = None, header=True, sep=',')
+#hist_df.to_csv (os.getcwd()+'/export_start_posns.csv', index = None, header=True, sep=',')
 
 #ls.append(e)
 
                             
-                         
 #df = pandas.DataFrame(ls,index = None, columns = None)
 #df = df.transpose()
 #df.to_csv("output.csv", sep=',')
