@@ -18,20 +18,20 @@ expr_lvls = [100]#[4] #list(np.arange(1,100, 4))
 exon = 0.3
 u_dist = 0.5
 n_millions = 100 # total number of millions of transcripts to consider
-transc_rate = 1.5 # rate of transcription
+transc_rate = 1#1.5 # rate of transcription
 
 
 # variables (to simulate over)
 labelings = [5]#[5,10,20,60]
 hs_intron_3 = [0.2]#[100]#[0.2] # list(np.arange(0.2,0.9,0.1))+list(np.arange(1,10,0.75))+list(np.arange(11,100,2))
-introns_3 =[2.0]#[40.0] #list(np.arange(0.04,0.09,0.02)+list(np.arange(0.1,1,0.1))+list(np.arange(1,50,2)) #NOTE: need to make larger because alt spliced introns are larger (look up)
+introns_3 =[5.0]#[40.0] #list(np.arange(0.04,0.09,0.02)+list(np.arange(0.1,1,0.1))+list(np.arange(1,50,2)) #NOTE: need to make larger because alt spliced introns are larger (look up)
 
 # for alt splicing 
 #   TODO: just for testing need to change to simulate over
 #   NOTE: also in future need to pick actual values because now these are determined by intron length and anything 
 #   that isn't divisible by 4 will give a non-integral response which won't work in the simulations
-hs_intron_1 = [40.0]#[40.0] # list(np.arange(0.2,0.9,0.1))+list(np.arange(1,10,0.75))+list(np.arange(11,100,2))
-hs_intron_2 = [40.0]#[40.0] # list(np.arange(0.2,0.9,0.1))+list(np.arange(1,10,0.75))+list(np.arange(11,100,2))
+hs_intron_1 = [4.0]#[40.0] # list(np.arange(0.2,0.9,0.1))+list(np.arange(1,10,0.75))+list(np.arange(11,100,2))
+hs_intron_2 = [1.0]#[40.0] # list(np.arange(0.2,0.9,0.1))+list(np.arange(1,10,0.75))+list(np.arange(11,100,2))
 
 exon_se = introns_3[0]/4
 intron_1 = (introns_3[0]-exon_se)/2
@@ -404,7 +404,16 @@ psi_se = psi_se_s[0]
 #                            #e = simulate(intron, exon, u_dist, d_dist, labeling, h, expr_lvl, n_millions, transc_rate, intron_1, intron_2, exon_se, h_alt_e, psi)
 ################################## ################################## ##################################
 e,f = simulate(intron_3, exon, u_dist, d_dist, labeling, h_intron_3, expr_lvl, n_millions, transc_rate, intron_1, intron_2, exon_se, h_intron_1, h_intron_2, psi_se)
-
+#
+# For plotting splice diagram line data
+intron_3 = 1000*intron_3
+exon   = 1000*exon
+u_dist = 1000*u_dist
+d_dist = 1000*d_dist
+transc_rate = 1000*transc_rate
+intron_1 = 1000*intron_1
+intron_2 = 1000*intron_2
+exon_se = 1000*exon_se
 
 
 
@@ -416,6 +425,7 @@ e.insert(0,"transc_rate",len(e)*[transc_rate])
 e.insert(0,"intron_3",len(e)*[intron_3])
 e.insert(0,"intron_1",len(e)*[intron_1])
 e.insert(0,"intron_2",len(e)*[intron_2])
+e.insert(0,"u_dist",len(e)*[u_dist])
 e.insert(0,"exon",len(e)*[exon])
 e.insert(0,"exon_se",len(e)*[exon_se])
 e.insert(0,"psi_se",len(e)*[psi_se])
@@ -465,15 +475,7 @@ ct_df.insert(0,"index",ct_df.index)
 #                            "bin_start":(division1[:-1]),
 #                            })
 
-## For plotting splice diagram line data
-intron_3 = 1000*intron_3
-exon   = 1000*exon
-u_dist = 1000*u_dist
-d_dist = 1000*d_dist
-transc_rate = 1000*transc_rate
-intron_1 = 1000*intron_1
-intron_2 = 1000*intron_2
-exon_se = 1000*exon_se
+
 
 
 
