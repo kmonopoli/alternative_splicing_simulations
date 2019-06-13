@@ -39,7 +39,7 @@ exon_se = introns_3[0]/4
 intron_1 = (introns_3[0]-exon_se)/2
 intron_2 = introns_3[0]-(exon_se+intron_1)
 
-psi_se_s=[0.5]#[0.5]#list(np.arange(0.0,1,0.1)) #Psi of SE (skipped exon) ## TODO: need a function that calculates this
+psi_se_s=[1.0]#[0.5]#list(np.arange(0.0,1,0.1)) #Psi of SE (skipped exon) ## TODO: need a function that calculates this
 
 
 
