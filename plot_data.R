@@ -1,11 +1,15 @@
 # install.packages("XQuartz") # need to run this first to install summarytools
 # install.packages( pkgs = "summarytools" )
+# install.packages("wesanderson")
 library(summarytools)
 library(ggplot2)
 library(reshape2)
 library(dplyr)
 library(cowplot)
 library(reshape)
+library("wesanderson")
+library(RColorBrewer)
+
 # Get data
 DIR = "/Users/kmonopoli/Google_Drive/research/alt_splicing_simulations/as_simulations_km/"
 dat <- read.csv(file=paste0(DIR,"export_dataframe.csv"), header=TRUE, sep=",")
@@ -48,9 +52,10 @@ names(ct_dat)[names(ct_dat) == "ct_unspliced"] <- "unspliced"
 Molten <- melt(ct_dat, id.vars = "index")
 Molten$variable <- factor(Molten$variable, levels(Molten$variable)[c(2,1,3:5)])
 
-hplt2 <- ggplot(Molten, aes(x = index, y = value, colour = variable))+geom_point()+
+
+hplt <- ggplot(Molten, aes(x = index, y = value, colour = variable))+geom_point()+
       theme(legend.position="bottom")+
-      xlab("Start Position")+ylab("Count") 
+      xlab("Start Position")+ylab("Count")#+scale_color_manual(values=brewer.pal(n=ncol(ct_dat)-1, name="Set2"))
 
 
 
@@ -124,7 +129,6 @@ txplt_all <- ggplot(NULL, aes(x = x, y = y, xend = xend, yend = yend,colour=spli
     geom_segment(data = segment_data2, size = sz, color = c("black","black","black","black","black"))+
     theme(legend.position="bottom", axis.line = element_blank(),axis.ticks = element_blank(),axis.text = element_blank(),axis.title = element_blank())+
     geom_text(data = segment_data2, aes(label=nms), position=position_nudge(x=0,y=700), hjust = 0, size = 2.8, colour = "black")
-  
 
 
 # Plot chart and table into one object
@@ -134,11 +138,51 @@ lay <- rbind(c(1,1,1),
              c(2,2,2),
              c(3,3,3))
 
-grid.arrange(txplt_all+theme(legend.position="bottom"), hplt2+theme(legend.position="bottom"), tbl, layout_matrix = lay)
+
+
+grid.arrange(txplt_all+theme(legend.position="none"), 
+             hplt+theme(legend.title = element_blank(),legend.position="bottom",legend.spacing.x = unit(1.0, 'cm')),
+             tbl, layout_matrix = lay)#, col = pal)
 
 
 
 
+## Junction Reads 
+# exon-exon junction reads
+jnc_dat <- read.csv(file=paste0(DIR,"export_junction_reads.csv"), header=TRUE, sep=",")
+jnc_dat <-jnc_dat[order(jnc_dat$junction.read,jnc_dat$start.position),]
+jnc_dat<-jnc_dat[!(jnc_dat$junction.read=="not junction read"),] # remove no's
+
+x_1 =jnc_dat$start.position 
+xend_1 = jnc_dat$start.position + jnc_dat$read.length
+
+y_1 =c(seq(1, length(x_1), by=1))
+junct_read= c(as.character(jnc_dat$junction.read))
+
+junc_segment_data = data.frame(
+  x = x_1,
+  xend = xend_1,
+  y =y_1,
+  yend = y_1,
+  jnct_read = junct_read
+)
+
+jncplt <- ggplot(junc_segment_data, aes(x = x, y = y, xend = xend, yend = yend,colour=jnct_read))+
+  geom_segment(aes(x = x, y = y, xend = xend, yend = y))
 
 
+y_height_jnc= max(junc_segment_data$y)/2
+segment_data3 <- segment_data2
+segment_data3$y <-c(y_height_jnc,y_height_jnc,y_height_jnc,y_height_jnc,y_height_jnc)
+segment_data3$yend <-c(y_height_jnc,y_height_jnc,y_height_jnc,y_height_jnc,y_height_jnc)
+segment_data3$x <- segment_data3$x - dat$u_dist[1]
+segment_data3$xend <- segment_data3$xend - dat$u_dist[1]
+sz2 <- c(300,1,300,1,300)
 
+txplt_junc <- ggplot(NULL, aes(x = x, y = y, xend = xend, yend = yend,colour=jnct_read)) + 
+  geom_segment(data = segment_data3, size = sz2, color = c("grey","grey","grey","grey","grey"))+
+  geom_segment(data = junc_segment_data) +
+  theme(legend.position="bottom")
+
+
+# intron-exon/exon-intron junction reads

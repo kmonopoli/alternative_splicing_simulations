@@ -25,21 +25,21 @@ transc_rate = 0.05#1.5 # rate of transcription
 
 # variables (to simulate over)
 labelings = [5]#[5,10,20,60]
-hs_intron_3 = [0.001]#[100]#[0.2] # list(np.arange(0.2,0.9,0.1))+list(np.arange(1,10,0.75))+list(np.arange(11,100,2))
-introns_3 =[1.0]#[40.0] #list(np.arange(0.04,0.09,0.02)+list(np.arange(0.1,1,0.1))+list(np.arange(1,50,2)) #NOTE: need to make larger because alt spliced introns are larger (look up)
+hs_intron_3 = [0.2]#[100]#[0.2] # list(np.arange(0.2,0.9,0.1))+list(np.arange(1,10,0.75))+list(np.arange(11,100,2))
+introns_3 =[2.0]#[40.0] #list(np.arange(0.04,0.09,0.02)+list(np.arange(0.1,1,0.1))+list(np.arange(1,50,2)) #NOTE: need to make larger because alt spliced introns are larger (look up)
 
 # for alt splicing 
 #   TODO: just for testing need to change to simulate over
 #   NOTE: also in future need to pick actual values because now these are determined by intron length and anything 
 #   that isn't divisible by 4 will give a non-integral response which won't work in the simulations
-hs_intron_1 = [0.0001]#[40.0] # list(np.arange(0.2,0.9,0.1))+list(np.arange(1,10,0.75))+list(np.arange(11,100,2))
-hs_intron_2 = [0.0001]#[40.0] # list(np.arange(0.2,0.9,0.1))+list(np.arange(1,10,0.75))+list(np.arange(11,100,2))
+hs_intron_1 = [100.0]#[40.0] # list(np.arange(0.2,0.9,0.1))+list(np.arange(1,10,0.75))+list(np.arange(11,100,2))
+hs_intron_2 = [20.0]#[40.0] # list(np.arange(0.2,0.9,0.1))+list(np.arange(1,10,0.75))+list(np.arange(11,100,2))
 
 exon_se = introns_3[0]/4
 intron_1 = (introns_3[0]-exon_se)/2
 intron_2 = introns_3[0]-(exon_se+intron_1)
 
-psi_se_s=[0.9]#[0.5]#list(np.arange(0.0,1,0.1)) #Psi of SE (skipped exon) ## TODO: need a function that calculates this
+psi_se_s=[0.5]#[0.5]#list(np.arange(0.0,1,0.1)) #Psi of SE (skipped exon) ## TODO: need a function that calculates this
 
 
 
@@ -71,10 +71,8 @@ def simulate(intron_3, exon, u_dist, d_dist, labeling, h_intron_3, expr_lvl, n_m
     #                     length.out = expression_level*n_millions))
 #    end_sites =  random.sample(range(1,int(intron_3 + exon + d_dist + labeling*transc_rate)), expr_lvl*n_millions)
     end_sites =  np.random.choice(range(1,int(intron_3 + exon + d_dist + labeling*transc_rate)), expr_lvl*n_millions)
-    plt.hist(end_sites, bins=20, color = "red")
 
     end_sites =[u_dist+x for x in end_sites]
-    plt.hist(end_sites, bins=20, color = "blue")
 
 #    print len(end_sites)
     # Determine if the transcripts are spliced or not
@@ -107,55 +105,50 @@ def simulate(intron_3, exon, u_dist, d_dist, labeling, h_intron_3, expr_lvl, n_m
     start_pos.read_start.loc[(start_pos['splice_type'] == 5)] = (start_pos['start'] - u_dist) + intron_3 * (start_pos['start'] > u_dist)
 
     # Determine if read is exon-exon (ee) junction read (only for splice types 1,2,3)
-    start_pos["junction_ee"] = "no"
+    start_pos["junction"] = "not junction read"
     junct_read_overlap = 10
-    start_pos.junction_ee.loc[(start_pos['splice_type'] == 1) & # intron_1 excluded
-                           (start_pos['read_start']  > (-1*u_dist+(-1*rl) +junct_read_overlap)) &
-                           (start_pos['read_start']  <=(-1*u_dist)+(rl-junct_read_overlap))] = "1"
-    start_pos.junction_ee.loc[(start_pos['splice_type'] == 2) & # intron_2 excluded
-                           (start_pos['read_start']  > ((-1*u_dist + intron_1 + exon_se) +(-1*rl) + junct_read_overlap)) &
-                           (start_pos['read_start']  <=((-1*u_dist + intron_1 + exon_se))+(rl-junct_read_overlap))] = "2"
-    start_pos.junction_ee.loc[(start_pos['splice_type'] == 3) & # intron_1 and intron_2 excluded (exon_se included)
-                           (start_pos['read_start']  > (-1*u_dist+(-1*rl) +junct_read_overlap)) &
-                           (start_pos['read_start']  <=(-1*u_dist)+(rl-junct_read_overlap)) &
-                           (start_pos['read_start']  > ((-1*u_dist + intron_1 + exon_se) +(-1*rl) + junct_read_overlap)) &
-                           (start_pos['read_start']  <=((-1*u_dist + intron_1 + exon_se))+(rl-junct_read_overlap))] = "3"
-    start_pos.junction_ee.loc[(start_pos['splice_type'] == 4) & # intron_3 excluded
-                           (start_pos['read_start']  > (-1*u_dist+(-1*rl) +junct_read_overlap)) &
-                           (start_pos['read_start']  <=(-1*u_dist)+(rl-junct_read_overlap))] = "4"
-    start_pos.junction_ee.loc[(start_pos['splice_type'] == 5)] = "5" # unspliced
+    start_pos.junction.loc[(start_pos['splice_type'] == 1) & # intron_1 excluded
+                           (start_pos['read_start']  > ((-1*rl) +junct_read_overlap)) &
+                           (start_pos['read_start']  <= (-1*junct_read_overlap))] = "exon_us - exon_se"
+    start_pos.junction.loc[(start_pos['splice_type'] == 2) & # intron_2 excluded
+                           (start_pos['read_start']  > ((intron_1 + exon_se) +(-1*rl) + junct_read_overlap)) &
+                           (start_pos['read_start']  <=(( intron_1 + exon_se))+(-1*junct_read_overlap))] = "exon_se - exon"
+    start_pos.junction.loc[(start_pos['splice_type'] == 3) &  # intron_1 and intron_2 excluded (exon_se included)
+                           ((start_pos['read_start']  > ((-1*rl) +junct_read_overlap)) &
+                           (start_pos['read_start']  <=(-1*junct_read_overlap)))] = "exon_us - exon_se"
+    start_pos.junction.loc[(start_pos['splice_type'] == 3) &  # intron_1 and intron_2 excluded (exon_se included)
+                           ((start_pos['read_start']  > ((intron_1 + exon_se) +(-1*rl) + junct_read_overlap)) &
+                           (start_pos['read_start']  <=((intron_1 + exon_se))+(-1*junct_read_overlap)))] = "exon_se - exon"
+    start_pos.junction.loc[(start_pos['splice_type'] == 4) & # intron_3 excluded
+                           (start_pos['read_start']  > ((-1*rl) +junct_read_overlap)) &
+                           (start_pos['read_start']  <=(-1*junct_read_overlap))] = "exon_us - exon"
     
-    
-    
-    # TODO: Determine if read is intron-exon (ie) junction read (only for splice types 0,3,4)
-#    start_pos["junction_ie"] = "no"
-#    
-#    start_pos.junction_ie.loc[(start_pos['splice_type'] == 0) & 
-#                           (start_pos['read_start']  > (-1*rl +10)) &
-#                           (start_pos['read_start']  <= -9)] = 'a1'
-#    start_pos.junction_ie.loc[(start_pos['splice_type'] == 0) & 
-#                           (start_pos['read_start']  > (-1*rl +10 + intron_1)) &
-#                           (start_pos['read_start']  <= (-9+intron_1))] = 'b1' # TODO: not sure if correct
-#    start_pos.junction_ie.loc[(start_pos['splice_type'] == 0) & 
-#                           (start_pos['read_start']  > (-1*rl +10 + intron_1+exon_se)) &
-#                           (start_pos['read_start']  <= (-9+intron_1+exon_se))] = 'c1' # TODO: not sure if correct
-#    start_pos.junction_ie.loc[(start_pos['splice_type'] == 0) & 
-#                           (start_pos['read_start']  > (-1*rl +10 + intron_1+exon_se+intron_2)) &
-#                           (start_pos['read_start']  <= (-9+intron_1+exon_se+intron_2))] = 'd1' # TODO: not sure if correct                   
-#                              
-#    start_pos.junction_ie.loc[(start_pos['splice_type'] == 3) & 
-#                           (start_pos['read_start']  > (-1*rl +10 + exon_se)) &
-#                           (start_pos['read_start']  <= (-9+exon_se))] = 'e1'# TODO: not sure if correct
-#    start_pos.junction_ie.loc[(start_pos['splice_type'] == 4) & 
-#                           (start_pos['read_start']  > (-1*rl +10)) &
-#                           (start_pos['read_start']  <= -9)] = 'f1'                       
-#    start_pos.junction_ie.loc[(start_pos['splice_type'] == 4) & 
-#                           (start_pos['read_start']  > (-1*rl +10 + intron_1)) &
-#                           (start_pos['read_start']  <= (-9+intron_1))] = 'g1' # TODO: not sure if correct
-#    start_pos.junction_ie.loc[(start_pos['splice_type'] == 4) & 
-#                           (start_pos['read_start']  > (-1*rl +10 + intron_1+exon_se)) &
-#                           (start_pos['read_start']  <= (-9+intron_1+exon_se))] = 'h1' # TODO: not sure if correct
-
+    # TODO: Determine if read is intron-exon (ie) junction read 
+    start_pos.junction.loc[(start_pos['splice_type'] == 1) & # intron_1 excluded
+                           (start_pos['read_start']  > ((intron_1 + exon_se)+(-1*rl) +junct_read_overlap)) &
+                           (start_pos['read_start']  <= ((intron_1 + exon_se)+(-1*junct_read_overlap)))] = "exon_se - intron_2"
+    start_pos.junction.loc[(start_pos['splice_type'] == 1) & # intron_1 excluded
+                           (start_pos['read_start']  > ((intron_1 + exon_se + intron_2)+(-1*rl) +junct_read_overlap)) &
+                           (start_pos['read_start']  <= ((intron_1 + exon_se + intron_2)+(-1*junct_read_overlap)))] = "intron_2 - exon"
+    start_pos.junction.loc[(start_pos['splice_type'] == 2) & # intron_2 excluded
+                           (start_pos['read_start']  > ((-1*rl) + junct_read_overlap)) &
+                           (start_pos['read_start']  <=(-1*junct_read_overlap))] = "exon_us - intron_1"
+    start_pos.junction.loc[(start_pos['splice_type'] == 2) & # intron_2 excluded
+                           (start_pos['read_start']  > (intron_1 +(-1*rl) + junct_read_overlap)) &
+                           (start_pos['read_start']  <=(intron_1 +(-1*junct_read_overlap)))] = "intron_1 - exon_se"
+                           
+    start_pos.junction.loc[(start_pos['splice_type'] == 5) & # unspliced
+                           (start_pos['read_start']  > ((-1*rl) + junct_read_overlap)) &
+                           (start_pos['read_start']  <=(-1*junct_read_overlap))] = "exon_us - intron_1"
+    start_pos.junction.loc[(start_pos['splice_type'] == 5) & # unspliced
+                           (start_pos['read_start']  > (intron_1 +(-1*rl) + junct_read_overlap)) &
+                           (start_pos['read_start']  <=(intron_1 +(-1*junct_read_overlap)))] = "intron_1 - exon_se"
+    start_pos.junction.loc[(start_pos['splice_type'] == 5) & # unspliced
+                           (start_pos['read_start']  > ((intron_1 + exon_se)+(-1*rl) +junct_read_overlap)) &
+                           (start_pos['read_start']  <= ((intron_1 + exon_se)+(-1*junct_read_overlap)))] = "exon_se - intron_2"
+    start_pos.junction.loc[(start_pos['splice_type'] == 5) & # unspliced
+                           (start_pos['read_start']  > ((intron_1 + exon_se + intron_2)+(-1*rl) +junct_read_overlap)) &
+                           (start_pos['read_start']  <= ((intron_1 + exon_se + intron_2)+(-1*junct_read_overlap)))] = "intron_2 - exon"
     return start_pos , spliced_df #e,f
 
 # Determine if (and how) a given transcript is spliced and their resulting lengths 
@@ -435,30 +428,6 @@ ct_df = pandas.DataFrame({"ct_intron_1_excluded":e.loc[e['splice_type_read'] == 
 #                            "bin_start":(division1[:-1]),
                             })
 ct_df.insert(0,"index",ct_df.index)
-#ct_intron_1_excluded, division1 = np.histogram( e.loc[e['splice_type_read'] == 'intron_1 excluded','read_start'],
-#                               bins = int(mx-mn),
-#                               range=(mn,mx)) 
-#ct_intron_2_excluded, division2 = np.histogram( e.loc[e['splice_type_read'] == 'intron_2 excluded','read_start'],
-##                               bins = int(mx-mn),
-#                               range=(mn,mx)) 
-#ct_intron_1_intron_2_excluded, division3 = np.histogram( e.loc[e['splice_type_read'] == 'intron_1 & intron_2 excluded','read_start'],
-##                               bins = int(mx-mn),
-#                               range=(mn,mx)) 
-#ct_intron_3_excluded, division4 = np.histogram( e.loc[e['splice_type_read'] == 'intron_3 excluded','read_start'],
-##                               bins = int(mx-mn),
-#                               range=(mn,mx)) 
-#ct_unspliced, division5 = np.histogram( e.loc[e['splice_type_read'] == 'unspliced','read_start'],
-##                               bins = int(mx-mn),
-#                               range=(mn,mx)) 
-#hist_df = pandas.DataFrame({"ct_intron_1_excluded":ct_intron_1_excluded,
-#                            "ct_intron_2_excluded":ct_intron_2_excluded,
-#                            "ct_intron_1_intron_2_excluded":ct_intron_1_intron_2_excluded,
-#                            "ct_intron_3_excluded":ct_intron_3_excluded,
-#                            "ct_unspliced":ct_unspliced,
-#                            "bin_start":(division1[:-1]),
-#                            })
-
-
 
 
 
@@ -514,13 +483,18 @@ f.insert(0,"intron_2",len(f)*[intron_2])
 f.insert(0,"exon_se",len(f)*[exon_se])
 f.insert(0,"psi_se",len(f)*[psi_se])
 
+## Get junction read data
+jnc_df = pandas.DataFrame({"start position":e['read_start'],
+                           "junction read":e['junction'],
+                           "read length":50,
+                            })
+
 
 e.to_csv (os.getcwd()+'/export_dataframe.csv', index = None, header=True, sep=',')
 f.to_csv (os.getcwd()+'/export_full_transcripts.csv', index = None, header=True, sep=',')
 ct_df.to_csv (os.getcwd()+'/export_start_posns.csv', index = None, header=True, sep=',')
-#hist_df.to_csv (os.getcwd()+'/export_start_posns.csv', index = None, header=True, sep=',')
+jnc_df.to_csv (os.getcwd()+'/export_junction_reads.csv', index = None, header=True, sep=',')
 
-#ls.append(e)
 
                             
 #df = pandas.DataFrame(ls,index = None, columns = None)
