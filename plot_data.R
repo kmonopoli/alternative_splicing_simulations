@@ -12,7 +12,7 @@ library(RColorBrewer)
 
 # Get data
 DIR = "/Users/kmonopoli/Google_Drive/research/alt_splicing_simulations/as_simulations_km/"
-dat <- read.csv(file=paste0(DIR,"export_dataframe.csv"), header=TRUE, sep=",")
+dat <- read.csv(file=paste0(DIR,"sim_outputs/export_dataframe_1.csv"), header=TRUE, sep=",")
 names(dat)[names(dat) == "start"] <- "seq_start"
 
 tbl_nms = c("half life intron 1 (min)","half life intron 2 (min)","half life intron 3 (min)",
@@ -41,7 +41,7 @@ tbl <- tableGrob(SummaryTable, cols=tbl_nms,rows=NULL, theme = mytheme)
 
 # FREQUENCY DIAGRAM
 # counts
-ct_dat <- read.csv(file=paste0(DIR,"export_start_posns.csv"), header=TRUE, sep=",")
+ct_dat <- read.csv(file=paste0(DIR,"sim_outputs/export_start_posns_1.csv"), header=TRUE, sep=",")
 ct_dat<- ct_dat[colSums(!is.na(ct_dat)) > 0] # drop any columns that are empty (all NA's)
 names(ct_dat)[names(ct_dat) == "ct_intron_1_excluded"] <- "intron 1 excluded"
 names(ct_dat)[names(ct_dat) == "ct_intron_1_intron_2_excluded"] <- "intron 1 & 2 excluded"
@@ -62,7 +62,7 @@ hplt <- ggplot(Molten, aes(x = index, y = value, colour = variable))+geom_point(
 # GENE DIAGRAM
 # Full Transcripts
 # get other dataframe output
-ft <- read.csv(file=paste0(DIR,"export_full_transcripts.csv"), header=TRUE, sep=",")
+ft <- read.csv(file=paste0(DIR,"sim_outputs/export_full_transcripts_1.csv"), header=TRUE, sep=",")
 
 ft <-ft[order(ft$splice_type_read,ft$lengths),]
 
@@ -149,7 +149,7 @@ grid.arrange(txplt_all+theme(legend.position="none"),
 
 ## Junction Reads 
 # exon-exon junction reads
-jnc_dat <- read.csv(file=paste0(DIR,"export_junction_reads.csv"), header=TRUE, sep=",")
+jnc_dat <- read.csv(file=paste0(DIR,"sim_outputs/export_junction_reads_1.csv"), header=TRUE, sep=",")
 jnc_dat <-jnc_dat[order(jnc_dat$junction.read,jnc_dat$start.position),]
 jnc_dat<-jnc_dat[!(jnc_dat$junction.read=="not junction read"),] # remove no's
 
