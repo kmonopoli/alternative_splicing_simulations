@@ -1,6 +1,7 @@
 # install.packages("XQuartz") # need to run this first to install summarytools
 # install.packages( pkgs = "summarytools" )
 # install.packages("wesanderson")
+# install.packages("hexbin")
 library(summarytools)
 library(ggplot2)
 library(reshape2)
@@ -9,6 +10,7 @@ library(cowplot)
 library(reshape)
 library("wesanderson")
 library(RColorBrewer)
+# library(hexbin)
 
 # Get data
 DIR = "/Users/kmonopoli/Google_Drive/research/alt_splicing_simulations/as_simulations_km/"
@@ -16,7 +18,7 @@ dat <- read.csv(file=paste0(DIR,"sim_outputs/export_dataframe_1.csv"), header=TR
 names(dat)[names(dat) == "start"] <- "seq_start"
 
 tbl_nms = c("half life intron 1 (min)","half life intron 2 (min)","half life intron 3 (min)",
-            "u dist (nt)","alt exon len (nt)","exon len (nt)", 
+            "u dist (nt)","alt exon len (nt)","exon len (nt)",
             "transc rate (nt/min)","intron 1 len (nt)",
             "intron 2 len (nt)", "intron 3 len (nt)","psi alt exon")
 # Create summary table
@@ -53,10 +55,11 @@ Molten <- melt(ct_dat, id.vars = "index")
 Molten$variable <- factor(Molten$variable, levels(Molten$variable)[c(2,1,3:5)])
 
 
-hplt <- ggplot(Molten, aes(x = index, y = value, colour = variable))+geom_point()+
+hplt <- ggplot(Molten, aes(x = index, y = value, colour = variable))+
+      geom_point(alpha = 0.1)+#,shape = ".")+
+      #geom_line()geom_path()+
       theme(legend.position="bottom")+
       xlab("Start Position")+ylab("Count")#+scale_color_manual(values=brewer.pal(n=ncol(ct_dat)-1, name="Set2"))
-
 
 
 # GENE DIAGRAM
@@ -67,9 +70,9 @@ ft <- read.csv(file=paste0(DIR,"sim_outputs/export_full_transcripts_1.csv"), hea
 ft <-ft[order(ft$splice_type_read,ft$lengths),]
 
 
-x_1 =ft$start_1 
+x_1 =ft$start_1
 xend_1 = ft$end_1
-x_2 =ft$start_2 
+x_2 =ft$start_2
 xend_2 = ft$end_2
 x_3 =ft$start_3
 xend_3 = ft$end_3
@@ -124,7 +127,7 @@ txplt2 <- ggplot(segment_data2, aes(x = gx, y = gy, xend = gxend, yend = gy))+
   geom_text(data = segment_data2, aes(label=splice_type), position=position_nudge(x=0,y=1), hjust = -0.5)
 
 
-txplt_all <- ggplot(NULL, aes(x = x, y = y, xend = xend, yend = yend,colour=splice_type)) + 
+txplt_all <- ggplot(NULL, aes(x = x, y = y, xend = xend, yend = yend,colour=splice_type)) +
     geom_segment(data = segment_data) +
     geom_segment(data = segment_data2, size = sz, color = c("black","black","black","black","black"))+
     theme(legend.position="bottom", axis.line = element_blank(),axis.ticks = element_blank(),axis.text = element_blank(),axis.title = element_blank())+
@@ -140,20 +143,20 @@ lay <- rbind(c(1,1,1),
 
 
 
-grid.arrange(txplt_all+theme(legend.position="none"), 
+grid.arrange(txplt_all+theme(legend.position="none"),
              hplt+theme(legend.title = element_blank(),legend.position="bottom",legend.spacing.x = unit(1.0, 'cm')),
              tbl, layout_matrix = lay)#, col = pal)
 
 
 
 
-## Junction Reads 
+## Junction Reads
 # exon-exon junction reads
 jnc_dat <- read.csv(file=paste0(DIR,"sim_outputs/export_junction_reads_1.csv"), header=TRUE, sep=",")
 jnc_dat <-jnc_dat[order(jnc_dat$junction.read,jnc_dat$start.position),]
 jnc_dat<-jnc_dat[!(jnc_dat$junction.read=="not junction read"),] # remove no's
 
-x_1 =jnc_dat$start.position 
+x_1 =jnc_dat$start.position
 xend_1 = jnc_dat$start.position + jnc_dat$read.length
 
 y_1 =c(seq(1, length(x_1), by=1))
@@ -179,7 +182,7 @@ segment_data3$x <- segment_data3$x - dat$u_dist[1]
 segment_data3$xend <- segment_data3$xend - dat$u_dist[1]
 sz2 <- c(300,1,300,1,300)
 
-txplt_junc <- ggplot(NULL, aes(x = x, y = y, xend = xend, yend = yend,colour=jnct_read)) + 
+txplt_junc <- ggplot(NULL, aes(x = x, y = y, xend = xend, yend = yend,colour=jnct_read)) +
   geom_segment(data = segment_data3, size = sz2, color = c("grey","grey","grey","grey","grey"))+
   geom_segment(data = junc_segment_data) +
   theme(legend.position="bottom")
