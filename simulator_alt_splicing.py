@@ -10,7 +10,7 @@ from subprocess import Popen, PIPE
 
 ## attributes TODO: make so read from command line
 d_dists = [0.1]#[0.5]#list(np.arange(0.5, 5, 0.5))
-expr_lvls = [100]#[4] #list(np.arange(1,100, 4))
+expr_lvls = [5]#[4] #list(np.arange(1,100, 4))
 
 ## parameters
 # constants
@@ -24,8 +24,8 @@ transc_rate = 1.5 # rate of transcription
 labelings = [5]#[5,10,20,60]
 introns_3 =[15.0]#[40.0] #list(np.arange(0.04,0.09,0.02)+list(np.arange(0.1,1,0.1))+list(np.arange(1,50,2)) #NOTE: need to make larger because alt spliced introns are larger (look up)
 
-hs_intron_1 = [5.0]#[40.0] # list(np.arange(0.2,0.9,0.1))+list(np.arange(1,10,0.75))+list(np.arange(11,100,2))
-hs_intron_2 = [5.0]#[40.0] # list(np.arange(0.2,0.9,0.1))+list(np.arange(1,10,0.75))+list(np.arange(11,100,2))
+hs_intron_1 = [50.0]#[40.0] # list(np.arange(0.2,0.9,0.1))+list(np.arange(1,10,0.75))+list(np.arange(11,100,2))
+hs_intron_2 = [0.01]#[40.0] # list(np.arange(0.2,0.9,0.1))+list(np.arange(1,10,0.75))+list(np.arange(11,100,2))
 hs_intron_3 = [0.5]#[100]#[0.2] # list(np.arange(0.2,0.9,0.1))+list(np.arange(1,10,0.75))+list(np.arange(11,100,2))
 
 
@@ -37,7 +37,7 @@ exon_se = introns_3[0]/4
 introns_1 = [(introns_3[0]-exon_se)/2]
 introns_2 = [introns_3[0]-(exon_se+introns_1[0])]
 
-psi_se_s=[0.5]#[0.5]#list(np.arange(0.0,1,0.1)) #Psi of SE (skipped exon) ## TODO: need a function that calculates this
+psi_se_s=[1]#[0.5]#list(np.arange(0.0,1,0.1)) #Psi of SE (skipped exon) ## TODO: need a function that calculates this
 
 
 
@@ -266,7 +266,7 @@ for d_dist in d_dists:
     start_pos.read_start.loc[(start_pos['splice_type'] == 1)] = (start_pos['start'] - u_dist) + intron_1 * (start_pos['start'] > u_dist) 
     
     #    2 --> intron_2 excluded
-    start_pos.read_start.loc[(start_pos['splice_type'] == 2)] = (start_pos['start'] - u_dist) + intron_2 * (start_pos['start'] > u_dist) 
+    start_pos.read_start.loc[(start_pos['splice_type'] == 2)] = (start_pos['start'] - u_dist) + 1 * (start_pos['start'] > u_dist) + intron_2 * (start_pos['start'] > u_dist+intron_1+exon_se) 
     
     #    3 --> intron_1 and intron_2 excluded (exon_se included)
     start_pos.read_start.loc[(start_pos['splice_type'] == 3)] = (start_pos['start'] - u_dist) + intron_1 * (start_pos['start'] > u_dist) + intron_2 * (start_pos['start'] > u_dist+intron_1)

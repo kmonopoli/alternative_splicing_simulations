@@ -157,7 +157,7 @@ gB <- ggplotGrob(hplt)
 maxWidth = grid::unit.pmax(gA$widths[2:5], gB$widths[2:5])
 gA$widths[2:5] <- as.list(maxWidth)
 gB$widths[2:5] <- as.list(maxWidth)
-grid.arrange(gA, gB, ncol=1)
+# grid.arrange(gA, gB, ncol=1)
 
 grid.arrange(gA, gB, tbl, layout_matrix=lay)
 # 
