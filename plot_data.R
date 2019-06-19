@@ -11,6 +11,7 @@ library(reshape)
 library("wesanderson")
 library(RColorBrewer)
 library(grid)
+library(stringr)
 # library(hexbin)
 
 # Get data
@@ -57,11 +58,12 @@ names(ct_dat)[names(ct_dat) == "ct_unspliced"] <- "unspliced"
 
 Molten <- melt(ct_dat, id.vars = "index")
 Molten$variable <- factor(Molten$variable, levels(Molten$variable)[c(2,1,3:5)])
-
-
-hplt <- ggplot(Molten, aes(x = index, y = value, colour = variable))+
-      geom_point(alpha = 0.1)+#,shape = ".")+
-      #geom_line()geom_path()+
+# Molten$variable <- factor(Molten$variable, levels(Molten$variable)[c(1,2,3:5)]) # if only 2 vars
+# sort by variable (flip so unspliced at bottom)
+hplt <- ggplot(Molten, aes(x = index, y = value, colour = (Molten$variable)))+
+      geom_point(alpha = 0.5)+#,shape = ".")+
+      #geom_line()+geom_path()+
+      guides( colour = guide_legend(override.aes = list(alpha=1)))+
       theme(legend.position="bottom")+
       xlim(min_x-1, max_x)+
       # scale_x_continuous(expand = c(0, 0)) + scale_y_continuous(expand = c(0, 0))+
@@ -137,16 +139,11 @@ txplt_all <- ggplot(NULL, aes(x = x, y = y, xend = xend, yend = yend,colour=spli
     # theme(legend.position="bottom")+#, axis.line = element_blank(),axis.ticks = element_blank(),axis.text = element_blank(),axis.title = element_blank())+
     # scale_x_continuous(expand = c(0,0)) + scale_y_continuous(expand = c(0, 0))+
     xlim(min_x-1, max_x)+
-    geom_text(data = segment_data2, aes(label=nms), position=position_nudge(x=0,y=700), hjust = 0, size = 2.8, colour = "black")
+    geom_text(data = segment_data2, aes(label=nms), position=position_nudge(x=0,y=600), hjust = 0, size = 2.8, colour = "black")
   
 
 
-# Plot chart and table into one object
-lay <- rbind(c(1,1,1),
-             c(1,1,1),
-             c(2,2,2),
-             c(2,2,2),
-             c(3,3,3))
+
 
 txplt_all <- txplt_all+theme(legend.position="none", axis.line = element_blank(),axis.ticks = element_blank(),axis.text = element_blank(),axis.title = element_blank())
   
@@ -159,45 +156,79 @@ gA$widths[2:5] <- as.list(maxWidth)
 gB$widths[2:5] <- as.list(maxWidth)
 # grid.arrange(gA, gB, ncol=1)
 
-grid.arrange(gA, gB, tbl, layout_matrix=lay)
-# 
-# 
-# ## Junction Reads
-# # exon-exon junction reads
-# jnc_dat <- read.csv(file=paste0(DIR,"sim_outputs/export_junction_reads_1.csv"), header=TRUE, sep=",")
-# jnc_dat <-jnc_dat[order(jnc_dat$junction.read,jnc_dat$start.position),]
-# jnc_dat<-jnc_dat[!(jnc_dat$junction.read=="not junction read"),] # remove no's
-# 
-# x_1 =jnc_dat$start.position
-# xend_1 = jnc_dat$start.position + jnc_dat$read.length
-# 
-# y_1 =c(seq(1, length(x_1), by=1))
-# junct_read= c(as.character(jnc_dat$junction.read))
-# 
-# junc_segment_data = data.frame(
-#   x = x_1,
-#   xend = xend_1,
-#   y =y_1,
-#   yend = y_1,
-#   jnct_read = junct_read
-# )
-# 
-# jncplt <- ggplot(junc_segment_data, aes(x = x, y = y, xend = xend, yend = yend,colour=jnct_read))+
-#   geom_segment(aes(x = x, y = y, xend = xend, yend = y))
-# 
-# 
-# y_height_jnc= max(junc_segment_data$y)/2
-# segment_data3 <- segment_data2
-# segment_data3$y <-c(y_height_jnc,y_height_jnc,y_height_jnc,y_height_jnc,y_height_jnc)
-# segment_data3$yend <-c(y_height_jnc,y_height_jnc,y_height_jnc,y_height_jnc,y_height_jnc)
+
+
+
+## Junction Reads
+# exon-exon junction reads
+jnc_dat <- read.csv(file=paste0(DIR,"sim_outputs/export_junction_reads_1.csv"), header=TRUE, sep=",")
+jnc_dat <-jnc_dat[order(jnc_dat$junction.read,jnc_dat$start.position),]
+jnc_dat<-jnc_dat[!(jnc_dat$junction.read=="not junction read"),] # remove no's
+
+x_1 =jnc_dat$start.position
+xend_1 = jnc_dat$start.position + jnc_dat$read.length
+
+y_1 =c(seq(1, length(x_1), by=1))
+junct_read= c(as.character(jnc_dat$junction.read))
+junct_read_type= c(as.character(jnc_dat$junction.read.type))
+
+junc_segment_data = data.frame(
+  x = x_1,
+  xend = xend_1,
+  y =y_1,
+  yend = y_1,
+  jnct_read = junct_read,
+  jnct_read_type = junct_read_type
+)
+
+  
+jncplt <- ggplot(junc_segment_data, aes(x = x, y = y, xend = xend, yend = yend,colour = jnct_read_type))+#colour=jnct_read))+
+  geom_segment(aes(x = x, y = y, xend = xend, yend = y))
+
+
+
+
+y_height_jnc= max(junc_segment_data$y)/2
+segment_data3 <- segment_data2
+segment_data3$y <-c(y_height_jnc,y_height_jnc,y_height_jnc,y_height_jnc,y_height_jnc)
+segment_data3$yend <-c(y_height_jnc,y_height_jnc,y_height_jnc,y_height_jnc,y_height_jnc)
 # segment_data3$x <- segment_data3$x - dat$u_dist[1]
 # segment_data3$xend <- segment_data3$xend - dat$u_dist[1]
-# sz2 <- c(300,1,300,1,300)
-# 
-# txplt_junc <- ggplot(NULL, aes(x = x, y = y, xend = xend, yend = yend,colour=jnct_read)) +
-#   geom_segment(data = segment_data3, size = sz2, color = c("grey","grey","grey","grey","grey"))+
-#   geom_segment(data = junc_segment_data) +
-#   theme(legend.position="bottom")
-# 
-# 
-# # intron-exon/exon-intron junction reads
+sz2 <- c(300,1,300,1,300)
+
+txplt_junc <- ggplot(NULL, aes(x = x, y = y, xend = xend, yend = yend,colour=jnct_read)) +
+  geom_segment(data = segment_data3, size = sz2, color = c("grey","grey","grey","grey","grey"))+
+  geom_text(data = segment_data3, aes(label=nms), position=position_nudge(x=0,y=1000), hjust = 0, size = 2.8, colour = "black")+
+  geom_segment(data = junc_segment_data) +
+  xlab("Start Position") +
+  theme(legend.position="bottom",
+        axis.title.y=element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_blank(),
+        axis.line.y=element_blank(),
+        legend.title = element_blank())
+  
+
+
+txplt_junc
+# intron-exon/exon-intron junction reads
+
+
+
+
+# Plot chart and table into one object
+lay <- rbind(c(1,1,1),
+             c(1,1,1),
+             c(2,2,2),
+             c(2,2,2),
+             c(3,3,3),
+             c(3,3,3),
+             c(3,3,3),
+             c(4,4,4))
+
+# grid.arrange(gA, gB,
+#              txplt_junc,
+#              tbl, layout_matrix=lay)
+
+txplt_junc
+

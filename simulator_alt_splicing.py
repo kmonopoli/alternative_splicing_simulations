@@ -9,24 +9,24 @@ from subprocess import Popen, PIPE
 
 
 ## attributes TODO: make so read from command line
-d_dists = [0.1]#[0.5]#list(np.arange(0.5, 5, 0.5))
-expr_lvls = [5]#[4] #list(np.arange(1,100, 4))
+d_dists = [0.5]#[0.5]#list(np.arange(0.5, 5, 0.5))
+expr_lvls = [100]#[4] #list(np.arange(1,100, 4))
 
 ## parameters
 # constants
-exon = 5.0#0.3
-u_dist = 5.0#0.5
+exon = 0.5#5.0#0.3
+u_dist = 0.5#5.0#0.5
 n_millions = 100 # total number of millions of transcripts to consider
-transc_rate = 1.5 # rate of transcription
+transc_rate = 0.1#1.5 # rate of transcription
 
 
 # variables (to simulate over)
 labelings = [5]#[5,10,20,60]
-introns_3 =[15.0]#[40.0] #list(np.arange(0.04,0.09,0.02)+list(np.arange(0.1,1,0.1))+list(np.arange(1,50,2)) #NOTE: need to make larger because alt spliced introns are larger (look up)
+introns_3 =[1.0]#[15.0]#[40.0] #list(np.arange(0.04,0.09,0.02)+list(np.arange(0.1,1,0.1))+list(np.arange(1,50,2)) #NOTE: need to make larger because alt spliced introns are larger (look up)
 
-hs_intron_1 = [50.0]#[40.0] # list(np.arange(0.2,0.9,0.1))+list(np.arange(1,10,0.75))+list(np.arange(11,100,2))
-hs_intron_2 = [0.01]#[40.0] # list(np.arange(0.2,0.9,0.1))+list(np.arange(1,10,0.75))+list(np.arange(11,100,2))
-hs_intron_3 = [0.5]#[100]#[0.2] # list(np.arange(0.2,0.9,0.1))+list(np.arange(1,10,0.75))+list(np.arange(11,100,2))
+hs_intron_1 = [40.0]#[40.0] # list(np.arange(0.2,0.9,0.1))+list(np.arange(1,10,0.75))+list(np.arange(11,100,2))
+hs_intron_2 = [0.2]#[40.0] # list(np.arange(0.2,0.9,0.1))+list(np.arange(1,10,0.75))+list(np.arange(11,100,2))
+hs_intron_3 = [40.0]#[100]#[0.2] # list(np.arange(0.2,0.9,0.1))+list(np.arange(1,10,0.75))+list(np.arange(11,100,2))
 
 
 # for alt splicing 
@@ -37,7 +37,7 @@ exon_se = introns_3[0]/4
 introns_1 = [(introns_3[0]-exon_se)/2]
 introns_2 = [introns_3[0]-(exon_se+introns_1[0])]
 
-psi_se_s=[1]#[0.5]#list(np.arange(0.0,1,0.1)) #Psi of SE (skipped exon) ## TODO: need a function that calculates this
+psi_se_s=[0.5]#[0.5]#list(np.arange(0.0,1,0.1)) #Psi of SE (skipped exon) ## TODO: need a function that calculates this
 
 
 
@@ -249,7 +249,6 @@ for d_dist in d_dists:
     # transpose data and put in dataframe
     spliced_df = pandas.DataFrame({"lengths":[x[0] for x in spliced],"splice_type":[x[1] for x in spliced]})
     
-
     # Get the reads from the transcripts and map them to the gene
     start_reads = get_reads(spliced) 
     start_pos = pandas.DataFrame({"transcript":start_reads[0],"start":start_reads[1]})
@@ -264,16 +263,14 @@ for d_dist in d_dists:
     start_pos["read_start"] = np.nan
     #    1 --> intron_1 excluded
     start_pos.read_start.loc[(start_pos['splice_type'] == 1)] = (start_pos['start'] - u_dist) + intron_1 * (start_pos['start'] > u_dist) 
-    
     #    2 --> intron_2 excluded
     start_pos.read_start.loc[(start_pos['splice_type'] == 2)] = (start_pos['start'] - u_dist) + 1 * (start_pos['start'] > u_dist) + intron_2 * (start_pos['start'] > u_dist+intron_1+exon_se) 
-    
     #    3 --> intron_1 and intron_2 excluded (exon_se included)
-    start_pos.read_start.loc[(start_pos['splice_type'] == 3)] = (start_pos['start'] - u_dist) + intron_1 * (start_pos['start'] > u_dist) + intron_2 * (start_pos['start'] > u_dist+intron_1)
+    start_pos.read_start.loc[(start_pos['splice_type'] == 3)] = (start_pos['start'] - u_dist) + intron_1 * (start_pos['start'] > u_dist) + intron_2 * (start_pos['start'] > u_dist+exon_se)
     #    4 --> intron_3 excluded
     start_pos.read_start.loc[(start_pos['splice_type'] == 4)] = (start_pos['start'] - u_dist) + intron_3 * (start_pos['start'] > u_dist)
     #    5 --> unspliced
-    start_pos.read_start.loc[(start_pos['splice_type'] == 5)] = (start_pos['start'] - u_dist) + intron_3 * (start_pos['start'] > u_dist)
+    start_pos.read_start.loc[(start_pos['splice_type'] == 5)] = (start_pos['start'] - u_dist) #+ intron_1 * (start_pos['start'] > u_dist)
 
     # Determine if read is exon-exon (ee) junction read (only for splice types 1,2,3)
     start_pos["junction"] = "not junction read"
@@ -294,7 +291,6 @@ for d_dist in d_dists:
                            (start_pos['read_start']  > ((-1*rl) +junct_read_overlap)) &
                            (start_pos['read_start']  <=(-1*junct_read_overlap))] = "exon_us - exon"
     
-    # TODO: Determine if read is intron-exon (ie) junction read 
     start_pos.junction.loc[(start_pos['splice_type'] == 1) & # intron_1 excluded
                            (start_pos['read_start']  > ((intron_1 + exon_se)+(-1*rl) +junct_read_overlap)) &
                            (start_pos['read_start']  <= ((intron_1 + exon_se)+(-1*junct_read_overlap)))] = "exon_se - intron_2"
@@ -321,6 +317,11 @@ for d_dist in d_dists:
                            (start_pos['read_start']  > ((intron_1 + exon_se + intron_2)+(-1*rl) +junct_read_overlap)) &
                            (start_pos['read_start']  <= ((intron_1 + exon_se + intron_2)+(-1*junct_read_overlap)))] = "intron_2 - exon"
 
+    # add junction read type (ie/ei and ee)
+    start_pos["junc_read_type"] = "n/a"
+    start_pos.junc_read_type.loc[(start_pos['junction'].str.contains("- intron"))] = "ei"
+    start_pos.junc_read_type.loc[(start_pos['junction'].str.contains("intron_1 - |intron_2 - ", regex = True))] = "ie"
+    start_pos.junc_read_type.loc[(start_pos['junc_read_type'] == "n/a")] = "ee"
     ######################### SIMULATION END #########################
     
     
@@ -408,9 +409,11 @@ for d_dist in d_dists:
     spliced_df.insert(0,"exon_se",len(spliced_df)*[exon_se])
     spliced_df.insert(0,"psi_se",len(spliced_df)*[psi_se])
     
+    # TODO add splice type to junction read data (to color plots)
     # Get junction read data
     jnc_df = pandas.DataFrame({"start position":start_pos['read_start'],
                                "junction read":start_pos['junction'],
+                               "junction read type":start_pos['junc_read_type'],
                                "read length":50,
                                 })
     # TODO need to name these files using parameter values, rather than file_num
