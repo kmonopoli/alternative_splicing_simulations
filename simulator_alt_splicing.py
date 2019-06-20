@@ -14,15 +14,15 @@ expr_lvls = [100]#[4] #list(np.arange(1,100, 4))
 
 ## parameters
 # constants
-exon = 0.5#5.0#0.3
-u_dist = 0.5#5.0#0.5
+exon = 5.0#5.0#0.3
+u_dist = 5.0#5.0#0.5
 n_millions = 100 # total number of millions of transcripts to consider
-transc_rate = 0.1#1.5 # rate of transcription
+transc_rate = 1.5#1.5 # rate of transcription
 
 
 # variables (to simulate over)
 labelings = [5]#[5,10,20,60]
-introns_3 =[1.0]#[15.0]#[40.0] #list(np.arange(0.04,0.09,0.02)+list(np.arange(0.1,1,0.1))+list(np.arange(1,50,2)) #NOTE: need to make larger because alt spliced introns are larger (look up)
+introns_3 =[15.0]#[15.0]#[40.0] #list(np.arange(0.04,0.09,0.02)+list(np.arange(0.1,1,0.1))+list(np.arange(1,50,2)) #NOTE: need to make larger because alt spliced introns are larger (look up)
 
 hs_intron_1 = [40.0]#[40.0] # list(np.arange(0.2,0.9,0.1))+list(np.arange(1,10,0.75))+list(np.arange(11,100,2))
 hs_intron_2 = [0.2]#[40.0] # list(np.arange(0.2,0.9,0.1))+list(np.arange(1,10,0.75))+list(np.arange(11,100,2))
@@ -37,7 +37,7 @@ exon_se = introns_3[0]/4
 introns_1 = [(introns_3[0]-exon_se)/2]
 introns_2 = [introns_3[0]-(exon_se+introns_1[0])]
 
-psi_se_s=[0.5]#[0.5]#list(np.arange(0.0,1,0.1)) #Psi of SE (skipped exon) ## TODO: need a function that calculates this
+psi_se_s=[0.25]#[0.5]#list(np.arange(0.0,1,0.1)) #Psi of SE (skipped exon) ## TODO: need a function that calculates this
 
 
 
