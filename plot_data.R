@@ -218,14 +218,14 @@ lay <- rbind(c(1,1,1),
              c(1,1,1),
              c(2,2,2),
              c(2,2,2),
-             # c(3,3,3),
-             # c(3,3,3),
-             # c(3,3,3),
+             c(3,3,3),
+             c(3,3,3),
+             c(3,3,3),
              c(4,4,4))
 
-# grid.arrange(gA, gB,
-#              # txplt_junc,
-#              tbl, layout_matrix=lay)
+grid.arrange(gA, gB,
+             txplt_junc,
+             tbl, layout_matrix=lay)
 
 
 # Plot junction reads and table into one object
@@ -233,5 +233,5 @@ lay2 <- rbind(c(1,1,1),
              c(1,1,1),
              c(2,2,2))
 
-grid.arrange(txplt_junc,
-             tbl, layout_matrix=lay2)
+# grid.arrange(txplt_junc,
+             # tbl, layout_matrix=lay2)

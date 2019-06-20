@@ -5,12 +5,13 @@
 import numpy as np
 import pandas
 import os
+import math
 from subprocess import Popen, PIPE
 
 
 ## attributes TODO: make so read from command line
 d_dists = [0.5]#[0.5]#list(np.arange(0.5, 5, 0.5))
-expr_lvls = [100]#[4] #list(np.arange(1,100, 4))
+expr_lvls = [4]#[100]#[4] #list(np.arange(1,100, 4))
 
 ## parameters
 # constants
@@ -175,7 +176,19 @@ def get_reads(data):
     return stdout
 
 
-
+def sum_square_eqn_solver(d_prime, r_prime, transcription_rate):
+    data = [d_prime, r_prime, transcription_rate]
+#    print data
+    cwd = os.getcwd()
+    process = Popen([cwd+"/sum_sq_equation_solver.R",str(data)], stdout=PIPE, stderr=PIPE)
+    stdout, stderr = process.communicate()
+    
+    stdout = stdout.replace('[1] "running sum square equation solver"'+'\n[1] "','')[:-2].split("   ")
+    stdout = [float(x) for x in stdout]
+    if( stdout == []):
+        print "ERROR in get_reads function that calls sum_sq_equation_solver.R -  no output received"
+        #quit()
+    return stdout
 
 
 
@@ -328,6 +341,12 @@ for d_dist in d_dists:
     ######################### SIMULATION END #########################
     
     
+    
+
+    
+    
+    
+    
     ## add simulation parameter data for test plots
     start_pos.insert(0,"h_intron_1",len(start_pos)*[h_intron_1])
     start_pos.insert(0,"h_intron_2",len(start_pos)*[h_intron_2])
@@ -362,7 +381,8 @@ for d_dist in d_dists:
                                 "ct_unspliced":start_pos.loc[start_pos['splice_type_read'] == 'unspliced','read_start'].value_counts()
                                 })
     ct_df.insert(0,"index",ct_df.index)
-    
+        
+
     
     
     spliced_df.insert(0,"splice_type_read",spliced_df['splice_type'])
@@ -412,7 +432,8 @@ for d_dist in d_dists:
     spliced_df.insert(0,"exon_se",len(spliced_df)*[exon_se])
     spliced_df.insert(0,"psi_se",len(spliced_df)*[psi_se])
     
-    # TODO add splice type to junction read data (to color plots)
+    
+
     # Get junction read data
     jnc_df = pandas.DataFrame({"start position":start_pos['read_start'],
                                "junction read":start_pos['junction'],
@@ -422,6 +443,29 @@ for d_dist in d_dists:
     # remove exon-intron junction reads (not useful for analysis) 
     jnc_df = jnc_df.drop(jnc_df[jnc_df.junction_read_type == "ei"].index)
     
+    # TODO
+    # Compute ground truth? half-lives 
+#    simulation_results$ratio <- simulation_results$unspliced_num/simulation_results$spliced_num
+#    simulation_results$D_prime <- (simulation_results$exon + simulation_results$D_dist) + (simulation_results$labeling*simulation_results$transcription_rate)
+#    simulation_results$R_prime <- (simulation_results$D_prime*log(2)) / (simulation_results$transcription_rate*((1/simulation_results$ratio) + 1))
+    unspliced_num = float(len(start_pos[start_pos.splice_type_read == "unspliced"]))
+    spliced_num = float(len(start_pos) - unspliced_num)
+    ratio = unspliced_num/spliced_num
+    d_prime =  (spliced_df.exon[0] + spliced_df.d_dist[0])/(float(labeling)*float(transc_rate))
+    r_prime = (d_prime*math.log(2))/(float(transc_rate)*((1.0/ratio)+1.0))
+    valout = sum_square_eqn_solver(d_prime,r_prime,transc_rate)
+    print valout
+    # TODO 
+    # add 
+    
+    # TODO
+    # Compute half-lives from junction reads and compare?
+    
+    
+    
+    
+    
+    
     
     # TODO need to name these files using parameter values, rather than file_num
     start_pos.to_csv (os.getcwd()+'/sim_outputs'+'/export_dataframe_'+str(file_num)+'.csv', index = None, header=True, sep=',')
@@ -430,7 +474,6 @@ for d_dist in d_dists:
     jnc_df.to_csv (os.getcwd()+'/sim_outputs'+'/export_junction_reads_'+str(file_num)+'.csv', index = None, header=True, sep=',')
 
     file_num+=1
-
                             
 #df = pandas.DataFrame(ls,index = None, columns = None)
 #df = df.transpose()
