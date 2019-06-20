@@ -294,9 +294,11 @@ for d_dist in d_dists:
     start_pos.junction.loc[(start_pos['splice_type'] == 1) & # intron_1 excluded
                            (start_pos['read_start']  > ((intron_1 + exon_se)+(-1*rl) +junct_read_overlap)) &
                            (start_pos['read_start']  <= ((intron_1 + exon_se)+(-1*junct_read_overlap)))] = "exon_se - intron_2"
+                           
     start_pos.junction.loc[(start_pos['splice_type'] == 1) & # intron_1 excluded
                            (start_pos['read_start']  > ((intron_1 + exon_se + intron_2)+(-1*rl) +junct_read_overlap)) &
                            (start_pos['read_start']  <= ((intron_1 + exon_se + intron_2)+(-1*junct_read_overlap)))] = "intron_2 - exon"
+    
     start_pos.junction.loc[(start_pos['splice_type'] == 2) & # intron_2 excluded
                            (start_pos['read_start']  > ((-1*rl) + junct_read_overlap)) &
                            (start_pos['read_start']  <=(-1*junct_read_overlap))] = "exon_us - intron_1"
@@ -306,16 +308,17 @@ for d_dist in d_dists:
                            
     start_pos.junction.loc[(start_pos['splice_type'] == 5) & # unspliced
                            (start_pos['read_start']  > ((-1*rl) + junct_read_overlap)) &
-                           (start_pos['read_start']  <=(-1*junct_read_overlap))] = "exon_us - intron_1"
-    start_pos.junction.loc[(start_pos['splice_type'] == 5) & # unspliced
-                           (start_pos['read_start']  > (intron_1 +(-1*rl) + junct_read_overlap)) &
-                           (start_pos['read_start']  <=(intron_1 +(-1*junct_read_overlap)))] = "intron_1 - exon_se"
-    start_pos.junction.loc[(start_pos['splice_type'] == 5) & # unspliced
-                           (start_pos['read_start']  > ((intron_1 + exon_se)+(-1*rl) +junct_read_overlap)) &
-                           (start_pos['read_start']  <= ((intron_1 + exon_se)+(-1*junct_read_overlap)))] = "exon_se - intron_2"
+                           (start_pos['read_start']  <=(-1*junct_read_overlap))] = "exon_us - intron_3"
+# introns 1 and 2 as well as exon_se do not exist for this splice type?
+#    start_pos.junction.loc[(start_pos['splice_type'] == 5) & # unspliced
+#                           (start_pos['read_start']  > (intron_1 +(-1*rl) + junct_read_overlap)) &
+#                           (start_pos['read_start']  <=(intron_1 +(-1*junct_read_overlap)))] = "intron_1 - exon_se"
+#    start_pos.junction.loc[(start_pos['splice_type'] == 5) & # unspliced
+#                           (start_pos['read_start']  > ((intron_1 + exon_se)+(-1*rl) +junct_read_overlap)) &
+#                           (start_pos['read_start']  <= ((intron_1 + exon_se)+(-1*junct_read_overlap)))] = "exon_se - intron_2"
     start_pos.junction.loc[(start_pos['splice_type'] == 5) & # unspliced
                            (start_pos['read_start']  > ((intron_1 + exon_se + intron_2)+(-1*rl) +junct_read_overlap)) &
-                           (start_pos['read_start']  <= ((intron_1 + exon_se + intron_2)+(-1*junct_read_overlap)))] = "intron_2 - exon"
+                           (start_pos['read_start']  <= ((intron_1 + exon_se + intron_2)+(-1*junct_read_overlap)))] = "intron_3 - exon"
 
     # add junction read type (ie/ei and ee)
     start_pos["junc_read_type"] = "n/a"
@@ -413,9 +416,13 @@ for d_dist in d_dists:
     # Get junction read data
     jnc_df = pandas.DataFrame({"start position":start_pos['read_start'],
                                "junction read":start_pos['junction'],
-                               "junction read type":start_pos['junc_read_type'],
+                               "junction_read_type":start_pos['junc_read_type'],
                                "read length":50,
                                 })
+    # remove exon-intron junction reads (not useful for analysis) 
+    jnc_df = jnc_df.drop(jnc_df[jnc_df.junction_read_type == "ei"].index)
+    
+    
     # TODO need to name these files using parameter values, rather than file_num
     start_pos.to_csv (os.getcwd()+'/sim_outputs'+'/export_dataframe_'+str(file_num)+'.csv', index = None, header=True, sep=',')
     spliced_df.to_csv (os.getcwd()+'/sim_outputs'+'/export_full_transcripts_'+str(file_num)+'.csv', index = None, header=True, sep=',')

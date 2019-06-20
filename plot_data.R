@@ -170,7 +170,7 @@ xend_1 = jnc_dat$start.position + jnc_dat$read.length
 
 y_1 =c(seq(1, length(x_1), by=1))
 junct_read= c(as.character(jnc_dat$junction.read))
-junct_read_type= c(as.character(jnc_dat$junction.read.type))
+junct_read_type= c(as.character(jnc_dat$junction_read_type))
 
 junc_segment_data = data.frame(
   x = x_1,
@@ -196,9 +196,9 @@ segment_data3$yend <-c(y_height_jnc,y_height_jnc,y_height_jnc,y_height_jnc,y_hei
 # segment_data3$xend <- segment_data3$xend - dat$u_dist[1]
 sz2 <- c(300,1,300,1,300)
 
-txplt_junc <- ggplot(NULL, aes(x = x, y = y, xend = xend, yend = yend,colour=jnct_read)) +
+txplt_junc <- ggplot(NULL, aes(x = x, y = y, xend = xend, yend = yend,colour = jnct_read))+#colour=jnct_read)) +
   geom_segment(data = segment_data3, size = sz2, color = c("grey","grey","grey","grey","grey"))+
-  geom_text(data = segment_data3, aes(label=nms), position=position_nudge(x=0,y=1000), hjust = 0, size = 2.8, colour = "black")+
+  geom_text(data = segment_data3, aes(label=nms), position=position_nudge(x=0,y=300), hjust = 0, size = 2.8, colour = "black")+
   geom_segment(data = junc_segment_data) +
   xlab("Start Position") +
   theme(legend.position="bottom",
@@ -209,9 +209,6 @@ txplt_junc <- ggplot(NULL, aes(x = x, y = y, xend = xend, yend = yend,colour=jnc
         legend.title = element_blank())
   
 
-
-txplt_junc
-# intron-exon/exon-intron junction reads
 
 
 
@@ -226,9 +223,15 @@ lay <- rbind(c(1,1,1),
              # c(3,3,3),
              c(4,4,4))
 
-grid.arrange(gA, gB,
-             # txplt_junc,
-             tbl, layout_matrix=lay)
+# grid.arrange(gA, gB,
+#              # txplt_junc,
+#              tbl, layout_matrix=lay)
 
-# txplt_junc
 
+# Plot junction reads and table into one object
+lay2 <- rbind(c(1,1,1),
+             c(1,1,1),
+             c(2,2,2))
+
+grid.arrange(txplt_junc,
+             tbl, layout_matrix=lay2)
