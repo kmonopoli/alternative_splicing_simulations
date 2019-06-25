@@ -18,10 +18,10 @@ library(stats)
 sumsqequationsolve <- function(atts, txnrate){
   # atts[1:3] are Dprimes
   # atts[4:6] are Rprimes
-  D_prime = atts[1:3]
-  R_prime = atts[4:6]
+  D_prime = atts[1]#atts[1:3]
+  R_prime = atts[2]#atts[4:6]
   hold.row <- c(NA, NA)
-  f <- function(h){ ((h*(1 - 2^(-D_prime[1]/(h*txnrate)))) - R_prime[1])^2 + ((h*(1 - 2^(-D_prime[2]/(h*txnrate)))) - R_prime[2])^2 + ((h*(1 - 2^(-D_prime[3]/(h*txnrate)))) - R_prime[3])^2 }
+  f <- function(h){ ((h*(1 - 2^(-D_prime[1]/(h*txnrate)))) - R_prime[1])^2}# + ((h*(1 - 2^(-D_prime[2]/(h*txnrate)))) - R_prime[2])^2 + ((h*(1 - 2^(-D_prime[3]/(h*txnrate)))) - R_prime[3])^2 }
   starth = 0
   if(sum(is.na(R_prime))==3){ return(hold.row) }
   try(fit.hold <- optim(starth, f))
@@ -182,7 +182,7 @@ n_millions = 100
 transcription_rate = 1.5
 
 ## variables to simulate over
-labelings = c(5,10,20)#c(5,10,20,60)
+# labelings = c(5,10,20)#c(5,10,20,60)
 # D_dists = c(0.5)#seq(0.5,5,by=0.5)
 # expression_levels = c(100)#seq(1,100,by=4)
 # half_lives = c(40)#c(seq(0.2,0.9,by=0.1),seq(1,10,by=0.75),seq(11,100,by=2))
@@ -192,7 +192,7 @@ D_dist = 0.5
 expression_level = 100
 half_life = 40
 intron = 15
-# labeling = 5
+labeling = 5
 # ## create header for SAM file - based on intron lengths
 # max_nonintron_length = (U_dist + exon + D_dists[length(D_dists)])*1000
 # sam_header = t(data.frame(row.names = c('at', 'sn', 'ln')))
@@ -205,7 +205,7 @@ intron = 15
 
 ##### Run the grid simulation #####
 simulation_results = t(data.frame(row.names = c('spliced_num', 'unspliced_num', 'params')))
-for(labeling in labelings){
+# for(labeling in labelings){
   # for (D_dist in D_dists){
   #   for (expression_level in expression_levels){
   #     for (half_life in half_lives){
@@ -309,7 +309,7 @@ for(labeling in labelings){
       # }
 #     }
 #   }
-}
+# }
 
 ##### JUNCTION METHOD #####
 # Use the results to get an estimate for the half life
@@ -321,60 +321,57 @@ simulation_results$transcription_rate <- simulation_results$transcription_rate#*
 simulation_results$ratio <- simulation_results$unspliced_num/simulation_results$spliced_num
 simulation_results$D_prime <- (simulation_results$exon + simulation_results$D_dist) + (simulation_results$labeling*simulation_results$transcription_rate)
 simulation_results$R_prime <- (simulation_results$D_prime*log(2)) / (simulation_results$transcription_rate*((1/simulation_results$ratio) + 1))
-print(simulation_results$spliced_num)
-print(simulation_results$unspliced_num)
-print(simulation_results$ratio)
-print(simulation_results$D_prime)
-print(simulation_results$R_prime)
-
 #simfile = paste0(DIR,"SIM_D",D_dists[1],"_X",expression_levels[1],"_L",labelings[1],".txt")
 #write.table(simulation_results, file=simfile, sep="\t",quote=F, row.names=F, col.names=T)
 
 ############ ############ ############ ############ ############ ############ ############
 
+
+
+results_wide <- simulation_results[,c(4,5,7:12)]
+results_wide <-data.frame(results_wide,
+  spliced_5 = simulation_results$spliced_num,
+  unspliced_5 = simulation_results$unspliced_num,
+  ratio_5 = simulation_results$ratio,
+  D_prime_5 = simulation_results$D_prime,
+  R_prime_5 = simulation_results$R_prime)
+
+
+sumsqfit.data <- t(apply(results_wide[,c('D_prime_5',
+                                         'R_prime_5')],
+                         1, sumsqequationsolve, results_wide$transcription_rate[1]))
 # sumsqequationsolve(atts, txnrate)
-#   
-# results_wide <- simulation_results[,c(4,5,7:12)]
-# results_wide <-data.frame(results_wide,
-#   spliced_5 = simulation_results_5$spliced_num, 
-#   unspliced_5 = simulation_results_5$unspliced_num, 
-#   ratio_5 = simulation_results_5$ratio, 
-#   D_prime_5 = simulation_results_5$D_prime, 
-#   R_prime_5 = simulation_results_5$R_prime)
-#   
-#   
-# sumsqfit.data <- t(apply(results_wide[,c('D_prime_5',
-#                                          'R_prime_5')],
-#                          1, sumsqequationsolve, results_wide$transcription_rate[1]))
-# results_wide$root = sumsqfit.data[,1]
-# results_wide$zerodev = sumsqfit.data[,2]
-# 
+
+results_wide$root = sumsqfit.data[,1]
+results_wide$zerodev = sumsqfit.data[,2]
+print("estimated h")
+print(results_wide$root)
 
 ############ ############ ############ ############ ############ ############ ############
 
 
 
-simulation_results_5 <- subset(simulation_results, labeling==5)
-simulation_results_10 <- subset(simulation_results, labeling==10)
-simulation_results_20 <- subset(simulation_results, labeling==20)
-
-# make one file across all timepoints
-results_wide <- simulation_results_5[,c(4,5,7:12)]
-results_wide <- data.frame(results_wide,
-                           spliced_5 = simulation_results_5$spliced_num, spliced_10 = simulation_results_10$spliced_num, spliced_20 = simulation_results_20$spliced_num,
-                           unspliced_5 = simulation_results_5$unspliced_num, unspliced_10 = simulation_results_10$unspliced_num, unspliced_20 = simulation_results_20$unspliced_num,
-                           ratio_5 = simulation_results_5$ratio, ratio_10 = simulation_results_10$ratio, ratio_20 = simulation_results_20$ratio,
-                           D_prime_5 = simulation_results_5$D_prime, D_prime_10 = simulation_results_10$D_prime, D_prime_20 = simulation_results_20$D_prime,
-                           R_prime_5 = simulation_results_5$R_prime, R_prime_10 = simulation_results_10$R_prime, R_prime_20 = simulation_results_20$R_prime)
-
-
-# calculate and add intron/exon density ratio to the data frame
-sumsqfit.data <- t(apply(results_wide[,c('D_prime_5', 'D_prime_10', 'D_prime_20',
-                                         'R_prime_5', 'R_prime_10', 'R_prime_20')],
-                         1, sumsqequationsolve, results_wide$transcription_rate[1]))
-results_wide$root = sumsqfit.data[,1]
-results_wide$zerodev = sumsqfit.data[,2]
-
+# simulation_results_5 <- subset(simulation_results, labeling==5)
+# simulation_results_10 <- subset(simulation_results, labeling==10)
+# simulation_results_20 <- subset(simulation_results, labeling==20)
+# 
+# # make one file across all timepoints
+# results_wide <- simulation_results_5[,c(4,5,7:12)]
+# results_wide <- data.frame(results_wide,
+#                            spliced_5 = simulation_results_5$spliced_num, spliced_10 = simulation_results_10$spliced_num, spliced_20 = simulation_results_20$spliced_num,
+#                            unspliced_5 = simulation_results_5$unspliced_num, unspliced_10 = simulation_results_10$unspliced_num, unspliced_20 = simulation_results_20$unspliced_num,
+#                            ratio_5 = simulation_results_5$ratio, ratio_10 = simulation_results_10$ratio, ratio_20 = simulation_results_20$ratio,
+#                            D_prime_5 = simulation_results_5$D_prime, D_prime_10 = simulation_results_10$D_prime, D_prime_20 = simulation_results_20$D_prime,
+#                            R_prime_5 = simulation_results_5$R_prime, R_prime_10 = simulation_results_10$R_prime, R_prime_20 = simulation_results_20$R_prime)
+# 
+# 
+# # calculate and add intron/exon density ratio to the data frame
+# sumsqfit.data <- t(apply(results_wide[,c('D_prime_5', 'D_prime_10', 'D_prime_20',
+#                                          'R_prime_5', 'R_prime_10', 'R_prime_20')],
+#                          1, sumsqequationsolve, results_wide$transcription_rate[1]))
+# results_wide$root = sumsqfit.data[,1]
+# results_wide$zerodev = sumsqfit.data[,2]
+# 
 # juncfile = paste0(DIR,"juncSIM_D",D_dists[1],"_X",expression_levels[1],".txt")
 # write.table(results_wide, file=juncfile, sep="\t", quote=F, row.names=F, col.names=T)
 # 

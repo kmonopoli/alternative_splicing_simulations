@@ -167,7 +167,6 @@ def splice(end_site, intron_3, intron_1, intron_2, exon_se, u_dist, d_dist, h_in
 #               of the transcript that it came from (columns: transcript, start)
 def get_reads(data):
     data = [[x[0] for x in data],[x[1] for x in data]]
-
     cwd = os.getcwd()
     process = Popen([cwd+"/weibull_dist_calc.R",str(data)], stdout=PIPE, stderr=PIPE)
     stdout, stderr = process.communicate()

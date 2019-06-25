@@ -3,12 +3,12 @@ library(stats)
 
 # read in info (as from command line)
 ## args: d_prime, r_prime, transcription_rate (as a list in python)
-args = (commandArgs(trailingOnly=TRUE))
+# args = (commandArgs(trailingOnly=TRUE))
 print("running sum square equation solver")
 
 # ####################
 # # FOR TESTING: ##
-# args <- "[0.7333333333333333, 0.0002881702719330355, 1500.0]"
+# args <- "[8300, 3.732219, 1500]" # [d_prime, r_prime, transcription_rate]
 # ####################
 
 
