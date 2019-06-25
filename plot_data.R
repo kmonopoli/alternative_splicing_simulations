@@ -162,14 +162,14 @@ gB$widths[2:5] <- as.list(maxWidth)
 ## Junction Reads
 # exon-exon junction reads
 jnc_dat <- read.csv(file=paste0(DIR,"sim_outputs/export_junction_reads_1.csv"), header=TRUE, sep=",")
-jnc_dat <-jnc_dat[order(jnc_dat$junction.read,jnc_dat$start.position),]
-jnc_dat<-jnc_dat[!(jnc_dat$junction.read=="not junction read"),] # remove no's
+jnc_dat <-jnc_dat[order(jnc_dat$junction_read,jnc_dat$start.position),]
+jnc_dat<-jnc_dat[!(jnc_dat$junction_read=="not junction read"),] # remove no's
 
 x_1 =jnc_dat$start.position
 xend_1 = jnc_dat$start.position + jnc_dat$read.length
 
 y_1 =c(seq(1, length(x_1), by=1))
-junct_read= c(as.character(jnc_dat$junction.read))
+junct_read= c(as.character(jnc_dat$junction_read))
 junct_read_type= c(as.character(jnc_dat$junction_read_type))
 
 junc_segment_data = data.frame(

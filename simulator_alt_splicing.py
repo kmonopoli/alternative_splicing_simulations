@@ -6,23 +6,26 @@ import numpy as np
 import pandas
 import os
 import math
+import gc
 from subprocess import Popen, PIPE
+
+
 
 
 ## attributes TODO: make so read from command line
 d_dists = [0.5]#[0.5]#list(np.arange(0.5, 5, 0.5))
-expr_lvls = [4]#[100]#[4] #list(np.arange(1,100, 4))
+expr_lvls = [100.0]#[100]#[4] #list(np.arange(1,100, 4))
 
 ## parameters
 # constants
-exon = 5.0#5.0#0.3
-u_dist = 5.0#5.0#0.5
-n_millions = 100 # total number of millions of transcripts to consider
+exon = 0.3#5.0#0.3
+u_dist = 0.5#5.0#0.5
+n_millions = 100.0 # total number of millions of transcripts to consider
 transc_rate = 1.5#1.5 # rate of transcription
 
 
 # variables (to simulate over)
-labelings = [5]#[5,10,20,60]
+labelings = [5.0]#,10,20]#[5,10,20,60]
 introns_3 =[15.0]#[15.0]#[40.0] #list(np.arange(0.04,0.09,0.02)+list(np.arange(0.1,1,0.1))+list(np.arange(1,50,2)) #NOTE: need to make larger because alt spliced introns are larger (look up)
 
 hs_intron_1 = [40.0]#[40.0] # list(np.arange(0.2,0.9,0.1))+list(np.arange(1,10,0.75))+list(np.arange(11,100,2))
@@ -38,7 +41,7 @@ exon_se = introns_3[0]/4
 introns_1 = [(introns_3[0]-exon_se)/2]
 introns_2 = [introns_3[0]-(exon_se+introns_1[0])]
 
-psi_se_s=[0.25]#[0.5]#list(np.arange(0.0,1,0.1)) #Psi of SE (skipped exon) ## TODO: need a function that calculates this
+psi_se_s=[0.0]#[0.5]#list(np.arange(0.0,1,0.1)) #Psi of SE (skipped exon) ## TODO: need a function that calculates this
 
 
 
@@ -197,6 +200,7 @@ def sum_square_eqn_solver(d_prime, r_prime, transcription_rate):
 
 
 
+
 ## START 
 
 
@@ -204,9 +208,9 @@ ls = []
 
 ################################## ################################## ##################################
 ## FOR TESTING: TODO: iterate through in real simulation
-#d_dist = d_dists[0]
+d_dist = d_dists[0]
 expr_lvl = expr_lvls[0]
-labeling = labelings[0]
+#labeling = labelings[0]
 h_intron_3 = hs_intron_3[0]
 intron_3 = introns_3[0]
 h_intron_1 = hs_intron_1[0]
@@ -231,8 +235,8 @@ exon_se = 1000*exon_se
 rl = 50
 
 # TODO: need to run these for loops to go through all possibilities
-#for labeling in labelings:
-for d_dist in d_dists:
+for labeling in labelings:
+#for d_dist in d_dists:
 #        for expr_lvl in expr_lvls:
 #            for intron_1 in introns_1: 
 #                for intron_2 in introns_2:
@@ -250,10 +254,10 @@ for d_dist in d_dists:
     ##   [[2]] the number of spliced junction reads
     ##   [[3]] the number of unspliced junction reads
     ##   [[4]] whether or not each read comes from a spliced or unspliced transcript
-
+    print "Labeling: ",labeling
     d_dist = 1000*d_dist
     # Generate expression_level*n_millions transcripts uniformly from the labeled region 
-    end_sites =  np.random.choice(range(1,int(intron_3 + exon + d_dist + labeling*transc_rate)), expr_lvl*n_millions)
+    end_sites =  np.random.choice(range(1,int(intron_3 + exon + d_dist + labeling*transc_rate)), int(expr_lvl*n_millions))
     end_sites =[u_dist+x for x in end_sites]
 
     # Determine if the transcripts are spliced or not
@@ -436,42 +440,94 @@ for d_dist in d_dists:
 
     # Get junction read data
     jnc_df = pandas.DataFrame({"start position":start_pos['read_start'],
-                               "junction read":start_pos['junction'],
+                               "junction_read":start_pos['junction'],
                                "junction_read_type":start_pos['junc_read_type'],
                                "read length":50,
                                 })
     # remove exon-intron junction reads (not useful for analysis) 
     jnc_df = jnc_df.drop(jnc_df[jnc_df.junction_read_type == "ei"].index)
     
-    # TODO
-    # Compute ground truth? half-lives 
-#    simulation_results$ratio <- simulation_results$unspliced_num/simulation_results$spliced_num
-#    simulation_results$D_prime <- (simulation_results$exon + simulation_results$D_dist) + (simulation_results$labeling*simulation_results$transcription_rate)
-#    simulation_results$R_prime <- (simulation_results$D_prime*log(2)) / (simulation_results$transcription_rate*((1/simulation_results$ratio) + 1))
-    unspliced_num = float(len(start_pos[start_pos.splice_type_read == "unspliced"]))
-    spliced_num = float(len(start_pos) - unspliced_num)
-    ratio = unspliced_num/spliced_num
-    d_prime =  (spliced_df.exon[0] + spliced_df.d_dist[0])/(float(labeling)*float(transc_rate))
-    r_prime = (d_prime*math.log(2))/(float(transc_rate)*((1.0/ratio)+1.0))
-    valout = sum_square_eqn_solver(d_prime,r_prime,transc_rate)
-    print valout
-    # TODO 
-    # add 
     
-    # TODO
-    # Compute half-lives from junction reads and compare?
-    
-    
-    
-    
-    
-    
-    
+#    # Get Data for Half-Life Calculations
+#    # TODO put calculations after loop (so can use multiple calculations to calculate)
+#    # Estimate half-lives 
+##    # intron 1
+#    unspliced_num_int1 = float(len(start_pos[start_pos.splice_type_read == "intron_2 excluded"])) #+ float(len(start_pos[start_pos.splice_type_read == "unspliced"]))
+##    spliced_num_int1 = float(len(start_pos[start_pos.splice_type_read == "intron_1 excluded"]))+float(len(start_pos[start_pos.splice_type_read == "intron_1 & intron_2 excluded"]))
+##    ratio_int1 = unspliced_num_int1/spliced_num_int1
+##    d_prime_int1 =  (spliced_df.exon_se[0])/(float(labeling)*float(transc_rate))
+##    r_prime_int1 = (d_prime_int1*math.log(2))/(float(transc_rate)*((1.0/ratio_int1)+1.0))
+##    print "\nd_prime_int1: ",d_prime_int1
+##    print "r_prime_int1: ",r_prime_int1
+##    est_h_int1 = sum_square_eqn_solver(d_prime_int1,r_prime_int1,transc_rate)[0]
+##
+##    # intron 2
+##    unspliced_num_int2 = float(len(start_pos[start_pos.splice_type_read == "intron_1 excluded"])) #+ float(len(start_pos[start_pos.splice_type_read == "unspliced"]))
+##    spliced_num_int2 = float(len(start_pos[start_pos.splice_type_read == "intron_2 excluded"]))+float(len(start_pos[start_pos.splice_type_read == "intron_1 & intron_2 excluded"]))
+##    ratio_int2 = unspliced_num_int2/spliced_num_int2
+##    d_prime_int2 =  (spliced_df.exon[0] + spliced_df.d_dist[0])/(float(labeling)*float(transc_rate))
+##    r_prime_int2 = (d_prime_int2*math.log(2))/(float(transc_rate)*((1.0/ratio_int2)+1.0))
+##    print "\nd_prime_int2: ",d_prime_int2
+##    print "r_prime_int2: ",r_prime_int2
+##    est_h_int2 = sum_square_eqn_solver(d_prime_int2,r_prime_int2,transc_rate)[0]
+#
+#    # intron 3
+    ## reads that fall on splice site?
+    spliced_num_int3 = float(len(start_pos[start_pos.junction == "exon_us - exon"]))
+    unspliced_num_int3 = float(len(start_pos[start_pos.junction == "intron_3 - exon"]))
+    ratio_int3 = unspliced_num_int3/spliced_num_int3
+    d_prime_int3 =  (spliced_df.exon[0] + spliced_df.d_dist[0])+(float(labeling)*float(transc_rate))
+    r_prime_int3 = (d_prime_int3*math.log(2))/(float(transc_rate)*((1.0/ratio_int3)+1.0))
+    print "\nspliced_num: ",spliced_num_int3
+    print "unspliced_num: ",unspliced_num_int3
+    print "ratio: ",ratio_int3
+    print "d_prime_int3: ",d_prime_int3
+    print "r_prime_int3: ",r_prime_int3
+    est_h_int3 = sum_square_eqn_solver(d_prime_int3,r_prime_int3,transc_rate)[0]
+    print "est_h_int3: ",est_h_int3
+    print "Actual h int3: ",h_intron_3
+#    
+#    # Estimate half-lives from junction reads
+##    # intron 1
+##    ie_junction_reads_int1 = float(len(jnc_df[jnc_df.junction_read == "intron_1 - exon_se"])) 
+##    ee_junction_reads_int1 = float(len(jnc_df[jnc_df.junction_read == "exon_us - exon_se"])) 
+##    # intron 2
+##    ie_junction_reads_int2 = float(len(jnc_df[jnc_df.junction_read == "intron_2 - exon"])) 
+##    ee_junction_reads_int2 = float(len(jnc_df[jnc_df.junction_read == "exon_se - exon"])) 
+#    # intron 3
+#    ie_junction_reads_int3 = float(len(jnc_df[jnc_df.junction_read == "intron_3 - exon"])) 
+#    ee_junction_reads_int3 = float(len(jnc_df[jnc_df.junction_read == "exon_us - exon"])) 
+#    
+##    print "\nINTRON 1:"
+##    print "estimated: ",est_h_int1
+##    print "junction estimate: ",ie_junction_reads_int1/ee_junction_reads_int1
+##    print "actual: ",h_intron_1
+##
+##    print "\nINTRON 2:"
+##    print "estimated: ",est_h_int2
+##    print "junction estimate: ",ie_junction_reads_int2/ee_junction_reads_int2
+##    print "actual: ",h_intron_2
+#
+#    print "\nINTRON 3:"
+#    print "estimated: ",est_h_int3
+#    print "junction estimate: ",ie_junction_reads_int3/ee_junction_reads_int3
+#    print "actual: ",h_intron_3
+#    
+
+
     # TODO need to name these files using parameter values, rather than file_num
     start_pos.to_csv (os.getcwd()+'/sim_outputs'+'/export_dataframe_'+str(file_num)+'.csv', index = None, header=True, sep=',')
     spliced_df.to_csv (os.getcwd()+'/sim_outputs'+'/export_full_transcripts_'+str(file_num)+'.csv', index = None, header=True, sep=',')
     ct_df.to_csv (os.getcwd()+'/sim_outputs'+'/export_start_posns_'+str(file_num)+'.csv', index = None, header=True, sep=',')
     jnc_df.to_csv (os.getcwd()+'/sim_outputs'+'/export_junction_reads_'+str(file_num)+'.csv', index = None, header=True, sep=',')
+
+#    # clear dataframes from memory
+#    del ct_df
+#    del jnc_df
+#    del spliced_df
+#    del start_pos
+#
+#    gc.collect()
 
     file_num+=1
                             
