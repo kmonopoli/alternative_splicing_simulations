@@ -12,6 +12,7 @@ library("wesanderson")
 library(RColorBrewer)
 library(grid)
 library(stringr)
+library(gridExtra)
 # library(hexbin)
 
 # Get data
@@ -37,7 +38,7 @@ SummaryTable <- data.frame(
   intron_3 = dat$intron_3[1],
   psi_se = dat$psi_se[1]
 )
-library(gridExtra)
+
 mytheme <- ttheme_default(base_size = 8, colhead=list(fg_params = list(parse=TRUE)), padding = unit(c(5, 5), "mm") )
 tbl <- tableGrob(SummaryTable, cols=tbl_nms,rows=NULL, theme = mytheme)
 
@@ -125,7 +126,7 @@ segment_data2 = data.frame(
   yend = gy,
   splice_type = c("exon","intron","exon","intron","exon")
 )
-nms <- c("u dist","intron 1","exon se", "intron 2", "exon")
+nms <- c("  u dist","  intron 1","  exon se", "  intron 2", "  exon")
 sz <- c(5,1,5,1,5)
 
 # txplt2 <- ggplot(segment_data2, aes(x = x, y = y, xend = xend, yend = y))+
@@ -139,7 +140,7 @@ txplt_all <- ggplot(NULL, aes(x = x, y = y, xend = xend, yend = yend,colour=spli
     # theme(legend.position="bottom")+#, axis.line = element_blank(),axis.ticks = element_blank(),axis.text = element_blank(),axis.title = element_blank())+
     # scale_x_continuous(expand = c(0,0)) + scale_y_continuous(expand = c(0, 0))+
     xlim(min_x-1, max_x)+
-    geom_text(data = segment_data2, aes(label=nms), position=position_nudge(x=0,y=600), hjust = 0, size = 2.8, colour = "black")
+    geom_text(data = segment_data2, aes(label=nms), position=position_nudge(x=0,y=1000), hjust = 0, size = 2.8, colour = "black")
   
 
 
@@ -198,7 +199,7 @@ sz2 <- c(300,1,300,1,300)
 
 txplt_junc <- ggplot(NULL, aes(x = x, y = y, xend = xend, yend = yend,colour = jnct_read))+#colour=jnct_read)) +
   geom_segment(data = segment_data3, size = sz2, color = c("grey","grey","grey","grey","grey"))+
-  geom_text(data = segment_data3, aes(label=nms), position=position_nudge(x=0,y=300), hjust = 0, size = 2.8, colour = "black")+
+  geom_text(data = segment_data3, aes(label=nms), position=position_nudge(x=0,y=250), hjust = 0, size = 2.8, colour = "black")+
   geom_segment(data = junc_segment_data) +
   xlab("Start Position") +
   theme(legend.position="bottom",
@@ -213,25 +214,55 @@ txplt_junc <- ggplot(NULL, aes(x = x, y = y, xend = xend, yend = yend,colour = j
 
 
 
-# Plot chart and table into one object
-lay <- rbind(c(1,1,1),
-             c(1,1,1),
-             c(2,2,2),
-             c(2,2,2),
-             c(3,3,3),
-             c(3,3,3),
-             c(3,3,3),
-             c(4,4,4))
-
-grid.arrange(gA, gB,
-             txplt_junc,
-             tbl, layout_matrix=lay)
 
 
-# Plot junction reads and table into one object
-lay2 <- rbind(c(1,1,1),
-             c(1,1,1),
-             c(2,2,2))
+
+# # Plot junction reads and table into one object
+# lay2 <- rbind(c(1,1,1),
+#              c(1,1,1),
+#              c(2,2,2))
 
 # grid.arrange(txplt_junc,
              # tbl, layout_matrix=lay2)
+
+
+
+# Get data
+hdat <- read.csv(file=paste0(DIR,"sim_outputs/export_half-lives_1.csv"), header=TRUE, sep=",")
+
+# Create summary table
+H_SummaryTable <- data.frame(
+  intron_name = hdat$intron,
+  h_est = hdat$h_estimated,
+  h_act = hdat$h_actual
+)
+mytheme <- ttheme_default(base_size = 8, colhead=list(fg_params = list(parse=TRUE)), padding = unit(c(5, 5), "mm") )
+htbl <- tableGrob(H_SummaryTable,rows=NULL, theme = mytheme)
+
+# lay3 <- rbind(c(1,1,1),
+#               c(2,2,2))
+# grid.arrange(tbl,htbl,layout_matrix=lay3)
+
+
+
+# Plot chart and table into one object
+lay <- rbind(c(1,1,1),
+             c(1,1,1),
+             c(1,1,1),
+             c(2,2,2),
+             c(2,2,2),
+             c(2,2,2),
+             c(3,3,7),
+             c(5,5,4),
+             c(5,5,4),
+             c(5,5,4),
+             c(6,6,6))
+lbl_junc <-textGrob("Junction Reads", gp = gpar(fontsize=15, fontface="bold"))
+lbl_h <-textGrob("Half-Lives", gp = gpar(fontsize=10, fontface="bold"))
+
+grid.arrange(gA, gB,
+             lbl_junc, 
+             htbl,
+             txplt_junc,
+             tbl, lbl_h,
+             layout_matrix=lay)
